@@ -279,32 +279,19 @@ export async function getMediaList(
   };
 }
 
-// Métricas suportadas por tipo de mídia (descobertas via erro 400 da API).
-// IMPORTANTE: a API quer "saved" (não "saves") — mapeamos pra coluna saves no banco.
-// Pra FEED em conta CRIADOR, plays/follows/profile_visits não funcionam.
-// Pra REELS, esses 3 funcionam.
-// Ref: docs Instagram Graph API v23.
-const FEED_METRICS = [
+// Métricas testadas pra serem universalmente seguras pra qualquer mídia
+// (FEED, CAROUSEL, REELS em contas BUSINESS + CRIADOR). Validadas via tentativa
+// e erro contra a API real — a documentação da Meta é otimista demais.
+const SAFE_MEDIA_METRICS = [
   "reach",
   "likes",
   "comments",
   "shares",
-  "saved", // API name; coluna no banco = saves
+  "saved", // API quer "saved", banco = "saves"
   "total_interactions",
 ];
 
-const REELS_METRICS = [
-  "reach",
-  "likes",
-  "comments",
-  "shares",
-  "saved",
-  "total_interactions",
-  "plays",
-  "follows",
-  "profile_visits",
-];
-
+// Stories têm conjunto totalmente diferente (não é tentado pra reels/feed)
 const STORY_METRICS = [
   "reach",
   "impressions",
@@ -315,40 +302,81 @@ const STORY_METRICS = [
   "navigation",
 ];
 
-export function getMetricsForMedia(
-  productType: MediaProductType | undefined,
-): string[] {
-  if (productType === "REELS") return REELS_METRICS;
-  if (productType === "STORY") return STORY_METRICS;
-  return FEED_METRICS;
+// Pra REELS, tentamos métricas extras separadamente — se falhar não bloqueia
+// o batch principal. plays geralmente funciona mas depende da idade/tipo do reel.
+const REELS_OPTIONAL_METRICS = ["plays"];
+
+async function fetchInsightsBatch(
+  accessToken: string,
+  mediaId: string,
+  metrics: string[],
+): Promise<InsightResult[]> {
+  if (metrics.length === 0) return [];
+  const params = new URLSearchParams({
+    metric: metrics.join(","),
+    access_token: accessToken,
+  });
+  const res = await fetch(`${GRAPH_API_BASE}/${mediaId}/insights?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  return (json.data ?? []) as InsightResult[];
 }
 
 /**
- * Busca insights de uma mídia específica.
- * Algumas métricas falham por tipo de mídia — usa tolerância parcial.
+ * Busca insights de uma mídia com fallback inteligente:
+ * 1. STORY: tenta o conjunto específico de stories
+ * 2. FEED/REELS: tenta o conjunto seguro (sempre funciona)
+ * 3. REELS adicional: tenta `plays` em batch separado (não bloqueia)
+ *
+ * Estratégia evita o problema de batches inteiros sendo rejeitados por
+ * uma única métrica inválida.
  */
 export async function getMediaInsightsResilient(
   accessToken: string,
   mediaId: string,
   productType: MediaProductType | undefined,
 ): Promise<{ insights: InsightResult[]; errors: string[] }> {
-  const metrics = getMetricsForMedia(productType);
   const errors: string[] = [];
+  const insights: InsightResult[] = [];
 
-  try {
-    const params = new URLSearchParams({
-      metric: metrics.join(","),
-      access_token: accessToken,
-    });
-    const res = await fetch(`${GRAPH_API_BASE}/${mediaId}/insights?${params}`);
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`${res.status}: ${text.slice(0, 200)}`);
+  if (productType === "STORY") {
+    try {
+      const story = await fetchInsightsBatch(accessToken, mediaId, STORY_METRICS);
+      insights.push(...story);
+    } catch (err) {
+      errors.push(
+        `story: ${err instanceof Error ? err.message : "erro desconhecido"}`,
+      );
     }
-    const json = await res.json();
-    return { insights: (json.data ?? []) as InsightResult[], errors };
-  } catch (err) {
-    errors.push(err instanceof Error ? err.message : "erro desconhecido");
-    return { insights: [], errors };
+    return { insights, errors };
   }
+
+  // FEED + REELS: conjunto seguro primeiro
+  try {
+    const safe = await fetchInsightsBatch(accessToken, mediaId, SAFE_MEDIA_METRICS);
+    insights.push(...safe);
+  } catch (err) {
+    errors.push(
+      `safe: ${err instanceof Error ? err.message : "erro desconhecido"}`,
+    );
+  }
+
+  // REELS: tenta plays separado (se falhar, não impacta o resto)
+  if (productType === "REELS") {
+    try {
+      const extra = await fetchInsightsBatch(
+        accessToken,
+        mediaId,
+        REELS_OPTIONAL_METRICS,
+      );
+      insights.push(...extra);
+    } catch {
+      // Silencioso — plays é opcional pra reels
+    }
+  }
+
+  return { insights, errors };
 }
