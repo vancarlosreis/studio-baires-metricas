@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "./config";
+import { isAllowedEmail } from "@/lib/auth/allowlist";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -37,11 +38,16 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isAuthRoute =
-    pathname === "/" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api");
+
+  // Defense in depth: se o user tem sessão mas o email não está na allowlist
+  // (ex: sessão antiga, allowlist alterada depois do login), derruba a sessão.
+  if (user && !isAllowedEmail(user.email)) {
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.searchParams.set("auth_error", "email_not_allowed");
+    return NextResponse.redirect(url);
+  }
 
   // Não autenticado tentando acessar área protegida → manda pra /
   if (!user && pathname.startsWith("/dashboard")) {

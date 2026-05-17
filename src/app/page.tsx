@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/login-form";
 
+type SearchParams = Promise<{ auth_error?: string }>;
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  email_not_allowed: "Este e-mail não está autorizado a acessar o sistema.",
+  not_authenticated: "Você precisa estar logada pra acessar essa página.",
+  "1": "Não conseguimos completar o login. Tente novamente.",
+};
+
 function Sparkle({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -14,7 +22,16 @@ function Sparkle({ className = "" }: { className?: string }) {
   );
 }
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
+  const authErrorMsg = sp.auth_error
+    ? (AUTH_ERROR_MESSAGES[sp.auth_error] ?? `Erro: ${sp.auth_error}`)
+    : null;
+
   return (
     <div className="bg-paper-grid relative min-h-screen flex-1 overflow-hidden">
       {/* Sparkles decorativos */}
@@ -52,6 +69,11 @@ export default function Home() {
 
         {/* Lado direito: form de login */}
         <section className="w-full max-w-md justify-self-end lg:max-w-lg">
+          {authErrorMsg && (
+            <div className="mb-4 rounded-2xl border border-burgundy/30 bg-burgundy/10 px-5 py-3">
+              <p className="text-sm font-semibold text-burgundy">{authErrorMsg}</p>
+            </div>
+          )}
           <LoginForm />
         </section>
       </main>
