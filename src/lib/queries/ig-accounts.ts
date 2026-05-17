@@ -118,18 +118,26 @@ export async function listAccountSnapshots(
 
 /**
  * Lista as últimas mídias de uma conta + último insight de cada.
+ * Opcionalmente filtra por media_product_type (FEED, REELS, STORY).
  */
 export async function listMediaWithInsights(
   supabase: DB,
   igAccountId: string,
-  limit = 50,
+  options: { limit?: number; productType?: string } = {},
 ): Promise<MediaWithLatestInsight[]> {
-  const { data: media, error } = await supabase
+  const limit = options.limit ?? 50;
+  let q = supabase
     .from("media")
     .select("*")
     .eq("ig_account_id", igAccountId)
     .order("posted_at", { ascending: false })
     .limit(limit);
+
+  if (options.productType) {
+    q = q.eq("media_product_type", options.productType);
+  }
+
+  const { data: media, error } = await q;
 
   if (error) {
     console.error("[listMediaWithInsights] erro:", error);
@@ -155,4 +163,28 @@ export async function listMediaWithInsights(
     ...m,
     latest_insight: latestByMedia.get(m.id) ?? null,
   }));
+}
+
+/**
+ * Conta mídias agrupadas por media_product_type (FEED, REELS, etc).
+ * Útil pra montar abas de filtro com totais.
+ */
+export async function countMediaByType(
+  supabase: DB,
+  igAccountId: string,
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("media")
+    .select("media_product_type")
+    .eq("ig_account_id", igAccountId);
+
+  if (error || !data) return {};
+
+  const counts: Record<string, number> = {};
+  for (const row of data) {
+    const key = row.media_product_type ?? "OTHER";
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  counts.TOTAL = data.length;
+  return counts;
 }

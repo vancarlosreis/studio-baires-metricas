@@ -6,11 +6,17 @@ import {
   getIgAccountByHandle,
   listAccountSnapshots,
   listMediaWithInsights,
+  countMediaByType,
   getAccountInitials,
 } from "@/lib/queries/ig-accounts";
 import { syncAccountFormAction } from "@/app/actions/sync";
 import { EvolutionChart, type EvolutionDataPoint } from "@/components/evolution-chart";
 import { MediaGrid } from "@/components/media-grid";
+
+const PRODUCT_TYPE_FROM_TAB: Record<string, string | undefined> = {
+  posts: "FEED",
+  reels: "REELS",
+};
 
 function formatNumber(n: number | null | undefined): string {
   if (n == null) return "—";
@@ -32,17 +38,29 @@ function timeAgo(iso: string | null): string {
 }
 
 type Params = Promise<{ handle: string }>;
+type SearchParams = Promise<{ aba?: string }>;
 
-export default async function AccountDetailPage({ params }: { params: Params }) {
+export default async function AccountDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const { handle } = await params;
+  const sParams = await searchParams;
   const supabase = await createClient();
 
   const account = await getIgAccountByHandle(supabase, handle);
   if (!account) notFound();
 
-  const [snapshots, media] = await Promise.all([
+  const activeTab = sParams.aba ?? "tudo";
+  const productType = PRODUCT_TYPE_FROM_TAB[activeTab];
+
+  const [snapshots, media, mediaCounts] = await Promise.all([
     listAccountSnapshots(supabase, account.id, 30),
-    listMediaWithInsights(supabase, account.id, 24),
+    listMediaWithInsights(supabase, account.id, { limit: 48, productType }),
+    countMediaByType(supabase, account.id),
   ]);
 
   // Snapshot mais recente (último do array, que está em asc)
@@ -173,14 +191,36 @@ export default async function AccountDetailPage({ params }: { params: Params }) 
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h2 className="headline-display text-3xl text-ink">
-              Últimos <span className="italic">posts</span>
+              Últimas <span className="italic">mídias</span>
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
               {media.length === 0
-                ? "Nenhum post sincronizado"
-                : `${media.length} ${media.length === 1 ? "mídia" : "mídias"} mais recentes`}
+                ? "Nenhuma mídia sincronizada nesse filtro"
+                : `Mostrando ${media.length} ${media.length === 1 ? "mídia" : "mídias"}`}
             </p>
           </div>
+        </div>
+
+        {/* Tabs de filtro */}
+        <div className="mb-6 flex flex-wrap gap-2">
+          <TabLink
+            href={`/dashboard/contas/${handle}`}
+            active={activeTab === "tudo"}
+            label="Tudo"
+            count={mediaCounts.TOTAL}
+          />
+          <TabLink
+            href={`/dashboard/contas/${handle}?aba=posts`}
+            active={activeTab === "posts"}
+            label="Posts"
+            count={mediaCounts.FEED}
+          />
+          <TabLink
+            href={`/dashboard/contas/${handle}?aba=reels`}
+            active={activeTab === "reels"}
+            label="Reels"
+            count={mediaCounts.REELS}
+          />
         </div>
 
         <MediaGrid items={media} />
@@ -229,5 +269,39 @@ function ChartCard({
       {subtitle && <p className="text-xs text-ink-soft">{subtitle}</p>}
       <div className="mt-4">{children}</div>
     </div>
+  );
+}
+
+function TabLink({
+  href,
+  active,
+  label,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number | undefined;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors ${
+        active
+          ? "bg-ink text-cream"
+          : "border border-ink/15 bg-paper text-ink hover:border-ink/40"
+      }`}
+    >
+      {label}
+      {count !== undefined && (
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+            active ? "bg-cream/20 text-cream" : "bg-ink/10 text-ink-soft"
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </Link>
   );
 }

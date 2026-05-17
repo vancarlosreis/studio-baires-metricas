@@ -281,6 +281,8 @@ export async function getMediaList(
 
 // Métricas suportadas por tipo de mídia (descobertas via erro 400 da API).
 // IMPORTANTE: a API quer "saved" (não "saves") — mapeamos pra coluna saves no banco.
+// Pra FEED em conta CRIADOR, plays/follows/profile_visits não funcionam.
+// Pra REELS, esses 3 funcionam.
 // Ref: docs Instagram Graph API v23.
 const FEED_METRICS = [
   "reach",
@@ -289,9 +291,6 @@ const FEED_METRICS = [
   "shares",
   "saved", // API name; coluna no banco = saves
   "total_interactions",
-  "follows",
-  "profile_visits",
-  "profile_activity",
 ];
 
 const REELS_METRICS = [
