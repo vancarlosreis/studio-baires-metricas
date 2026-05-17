@@ -6,6 +6,48 @@
 
 const GRAPH_API_BASE = "https://graph.instagram.com/v23.0";
 
+/**
+ * Contexto que define qual base + path usar pra cada conta.
+ *
+ * - Business Login (token direto IG) → `graph.instagram.com/v23.0` + `me`
+ * - Facebook Login / Meta Switch (token User do FB) → `graph.facebook.com/v23.0` + `{ig_user_id}`
+ *
+ * Quando `undefined`, assume Business Login (compat com chamadas existentes).
+ */
+export type GraphContext = {
+  /** Ex: `https://graph.facebook.com/v23.0`. Default: graph.instagram.com */
+  apiBase?: string;
+  /** Ex: o numérico `17841...`. Default: `me` */
+  accountPath?: string;
+};
+
+function resolveCtx(ctx?: GraphContext): {
+  apiBase: string;
+  accountPath: string;
+} {
+  return {
+    apiBase: ctx?.apiBase ?? GRAPH_API_BASE,
+    accountPath: ctx?.accountPath ?? "me",
+  };
+}
+
+/**
+ * Helper: monta um GraphContext a partir de uma ig_account row.
+ * Usa o `auth_method` pra decidir qual API base + path usar.
+ */
+export function contextForAccount(account: {
+  auth_method: "business_login" | "facebook_login";
+  ig_user_id: string;
+}): GraphContext {
+  if (account.auth_method === "facebook_login") {
+    return {
+      apiBase: "https://graph.facebook.com/v23.0",
+      accountPath: account.ig_user_id,
+    };
+  }
+  return {}; // Business Login: defaults
+}
+
 export type AccountType = "BUSINESS" | "MEDIA_CREATOR" | "PERSONAL" | string;
 
 export type AccountProfileResponse = {
@@ -24,9 +66,13 @@ export type AccountProfileResponse = {
  */
 export async function getAccountProfile(
   accessToken: string,
+  ctx?: GraphContext,
 ): Promise<AccountProfileResponse> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
+  // `user_id` é alias do Business Login. Em graph.facebook.com pedimos `id`.
+  const isFb = apiBase.includes("graph.facebook.com");
   const fields = [
-    "user_id",
+    isFb ? "id" : "user_id",
     "username",
     "name",
     "account_type",
@@ -37,7 +83,7 @@ export async function getAccountProfile(
   ].join(",");
 
   const params = new URLSearchParams({ fields, access_token: accessToken });
-  const res = await fetch(`${GRAPH_API_BASE}/me?${params}`);
+  const res = await fetch(`${apiBase}/${accountPath}?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`getAccountProfile ${res.status}: ${text.slice(0, 200)}`);
@@ -119,7 +165,9 @@ export async function getAudienceDemographic(
   accessToken: string,
   metric: AudienceType,
   breakdown: DemographicBreakdown,
+  ctx?: GraphContext,
 ): Promise<DemographicResult | null> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
   const params = new URLSearchParams({
     metric,
     period: "lifetime",
@@ -129,7 +177,7 @@ export async function getAudienceDemographic(
     access_token: accessToken,
   });
 
-  const res = await fetch(`${GRAPH_API_BASE}/me/insights?${params}`);
+  const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(
@@ -159,12 +207,13 @@ export async function getAudienceDemographicsResilient(
   accessToken: string,
   metric: AudienceType,
   breakdowns: DemographicBreakdown[],
+  ctx?: GraphContext,
 ): Promise<{
   results: DemographicResult[];
   errors: string[];
 }> {
   const settled = await Promise.allSettled(
-    breakdowns.map((b) => getAudienceDemographic(accessToken, metric, b)),
+    breakdowns.map((b) => getAudienceDemographic(accessToken, metric, b, ctx)),
   );
 
   const results: DemographicResult[] = [];
@@ -194,14 +243,16 @@ export type OnlineFollowers = Record<string, number>; // { "0": 142, "1": 89, ..
  */
 export async function getOnlineFollowers(
   accessToken: string,
+  ctx?: GraphContext,
 ): Promise<OnlineFollowers | null> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
   const params = new URLSearchParams({
     metric: "online_followers",
     period: "lifetime",
     access_token: accessToken,
   });
 
-  const res = await fetch(`${GRAPH_API_BASE}/me/insights?${params}`);
+  const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`getOnlineFollowers ${res.status}: ${text.slice(0, 200)}`);
@@ -246,9 +297,11 @@ export async function getAccountInsights(
   accessToken: string,
   metrics: InsightsMetric[],
   options: { since?: number; until?: number } = {},
+  ctx?: GraphContext,
 ): Promise<InsightResult[]> {
   if (metrics.length === 0) return [];
 
+  const { apiBase, accountPath } = resolveCtx(ctx);
   const params = new URLSearchParams({
     metric: metrics.join(","),
     period: "day",
@@ -258,7 +311,7 @@ export async function getAccountInsights(
   if (options.since) params.set("since", String(options.since));
   if (options.until) params.set("until", String(options.until));
 
-  const res = await fetch(`${GRAPH_API_BASE}/me/insights?${params}`);
+  const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`getAccountInsights ${res.status}: ${text.slice(0, 200)}`);
@@ -275,6 +328,7 @@ export async function getAccountInsightsResilient(
   accessToken: string,
   accountType: AccountType | undefined,
   options: { since?: number; until?: number } = {},
+  ctx?: GraphContext,
 ): Promise<{ insights: InsightResult[]; errors: string[] }> {
   const errors: string[] = [];
   const insights: InsightResult[] = [];
@@ -285,6 +339,7 @@ export async function getAccountInsightsResilient(
       accessToken,
       UNIVERSAL_METRICS,
       options,
+      ctx,
     );
     insights.push(...universal);
   } catch (err) {
@@ -300,6 +355,7 @@ export async function getAccountInsightsResilient(
         accessToken,
         BUSINESS_ONLY_METRICS,
         options,
+        ctx,
       );
       insights.push(...businessOnly);
     } catch (err) {
@@ -370,7 +426,9 @@ export type MediaListResponse = {
 export async function getMediaList(
   accessToken: string,
   options: { maxItems?: number; pageSize?: number } = {},
+  ctx?: GraphContext,
 ): Promise<MediaListResponse> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
   const maxItems = options.maxItems ?? 50;
   const pageSize = Math.min(options.pageSize ?? 25, 100);
   const fields = [
@@ -386,7 +444,7 @@ export async function getMediaList(
   ].join(",");
 
   const collected: MediaItem[] = [];
-  let nextUrl: string | null = `${GRAPH_API_BASE}/me/media?${new URLSearchParams({
+  let nextUrl: string | null = `${apiBase}/${accountPath}/media?${new URLSearchParams({
     fields,
     limit: String(pageSize),
     access_token: accessToken,
@@ -441,13 +499,15 @@ async function fetchInsightsBatch(
   accessToken: string,
   mediaId: string,
   metrics: string[],
+  ctx?: GraphContext,
 ): Promise<InsightResult[]> {
   if (metrics.length === 0) return [];
+  const { apiBase } = resolveCtx(ctx);
   const params = new URLSearchParams({
     metric: metrics.join(","),
     access_token: accessToken,
   });
-  const res = await fetch(`${GRAPH_API_BASE}/${mediaId}/insights?${params}`);
+  const res = await fetch(`${apiBase}/${mediaId}/insights?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`${res.status}: ${text.slice(0, 200)}`);
@@ -469,13 +529,14 @@ export async function getMediaInsightsResilient(
   accessToken: string,
   mediaId: string,
   productType: MediaProductType | undefined,
+  ctx?: GraphContext,
 ): Promise<{ insights: InsightResult[]; errors: string[] }> {
   const errors: string[] = [];
   const insights: InsightResult[] = [];
 
   if (productType === "STORY") {
     try {
-      const story = await fetchInsightsBatch(accessToken, mediaId, STORY_METRICS);
+      const story = await fetchInsightsBatch(accessToken, mediaId, STORY_METRICS, ctx);
       insights.push(...story);
     } catch (err) {
       errors.push(
@@ -487,7 +548,7 @@ export async function getMediaInsightsResilient(
 
   // FEED + REELS: conjunto seguro primeiro
   try {
-    const safe = await fetchInsightsBatch(accessToken, mediaId, SAFE_MEDIA_METRICS);
+    const safe = await fetchInsightsBatch(accessToken, mediaId, SAFE_MEDIA_METRICS, ctx);
     insights.push(...safe);
   } catch (err) {
     errors.push(
@@ -502,6 +563,7 @@ export async function getMediaInsightsResilient(
         accessToken,
         mediaId,
         REELS_OPTIONAL_METRICS,
+        ctx,
       );
       insights.push(...extra);
     } catch {
