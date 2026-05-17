@@ -16,22 +16,20 @@ import {
   sortAgeBuckets,
   genderLabel,
 } from "@/lib/queries/demographics";
-import { syncAccountFormAction } from "@/app/actions/sync";
+import { resolvePeriod } from "@/lib/period";
 import {
   EvolutionChart,
   type EvolutionDataPoint,
 } from "@/components/evolution-chart";
-import { MediaGrid } from "@/components/media-grid";
+import { MediaDisplay } from "@/components/media-display";
+import { SyncButton } from "@/components/sync-button";
+import { PeriodSelector } from "@/components/period-selector";
 import {
   DonutChart,
   DonutLegend,
   type DonutSlice,
 } from "@/components/charts/donut-chart";
-import {
-  AgeBarChart,
-  AgeGenderGroupedChart,
-  type GroupedBarData,
-} from "@/components/charts/age-gender-chart";
+import { AgeBarChart } from "@/components/charts/age-gender-chart";
 import { HourlyBarChart } from "@/components/charts/hourly-chart";
 import { DemographicsTable } from "@/components/tables/demographics-table";
 
@@ -68,7 +66,15 @@ const COLORS = {
 };
 
 type Params = Promise<{ handle: string }>;
-type SearchParams = Promise<{ aba?: string }>;
+type SearchParams = Promise<{
+  aba?: string;
+  periodo?: string;
+  de?: string;
+  ate?: string;
+  vis?: string;
+  sort?: string;
+  ord?: string;
+}>;
 
 export default async function AccountDetailPage({
   params,
@@ -86,30 +92,50 @@ export default async function AccountDetailPage({
 
   const activeTab = sParams.aba ?? "tudo";
   const productType = PRODUCT_TYPE_FROM_TAB[activeTab];
+  const period = resolvePeriod(sParams.periodo, sParams.de, sParams.ate);
+  const periodDays = Math.max(
+    1,
+    Math.ceil(
+      (period.end.getTime() - period.start.getTime()) / (24 * 60 * 60 * 1000),
+    ),
+  );
 
-  const [snapshots, media, mediaCounts, demographics] = await Promise.all([
-    listAccountSnapshots(supabase, account.id, 30),
-    listMediaWithInsights(supabase, account.id, { limit: 48, productType }),
+  const [snapshots, allMedia, mediaCounts, demographics] = await Promise.all([
+    listAccountSnapshots(supabase, account.id, Math.min(periodDays + 30, 365)),
+    listMediaWithInsights(supabase, account.id, { limit: 100, productType }),
     countMediaByType(supabase, account.id),
     getLatestDemographics(supabase, account.id),
   ]);
 
-  const latest = snapshots[snapshots.length - 1];
+  // Filtra mídias do período selecionado
+  const media = allMedia.filter((m) => {
+    const t = new Date(m.posted_at).getTime();
+    return t >= period.start.getTime() && t <= period.end.getTime();
+  });
 
-  // Gráfico de evolução
-  const followersData: EvolutionDataPoint[] = snapshots.map((s) => ({
+  // Snapshots filtrados pelo período pros gráficos
+  const periodSnapshots = snapshots.filter((s) => {
+    const t = new Date(s.snapshot_date + "T12:00:00").getTime();
+    return t >= period.start.getTime() && t <= period.end.getTime();
+  });
+
+  const latest = periodSnapshots[periodSnapshots.length - 1] ?? snapshots[snapshots.length - 1];
+
+  // Gráfico de evolução — usa snapshots dentro do período, fallback pra todos se vazio
+  const chartSnapshots = periodSnapshots.length > 0 ? periodSnapshots : snapshots;
+  const followersData: EvolutionDataPoint[] = chartSnapshots.map((s) => ({
     date: s.snapshot_date,
     value: s.followers_count,
   }));
-  const reachData: EvolutionDataPoint[] = snapshots.map((s) => ({
+  const reachData: EvolutionDataPoint[] = chartSnapshots.map((s) => ({
     date: s.snapshot_date,
     value: s.reach,
   }));
-  const viewsData: EvolutionDataPoint[] = snapshots.map((s) => ({
+  const viewsData: EvolutionDataPoint[] = chartSnapshots.map((s) => ({
     date: s.snapshot_date,
     value: s.views,
   }));
-  const engagedData: EvolutionDataPoint[] = snapshots.map((s) => ({
+  const engagedData: EvolutionDataPoint[] = chartSnapshots.map((s) => ({
     date: s.snapshot_date,
     value: s.accounts_engaged,
   }));
@@ -210,21 +236,11 @@ export default async function AccountDetailPage({
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <form action={syncAccountFormAction}>
-            <input type="hidden" name="igAccountId" value={account.id} />
-            <input
-              type="hidden"
-              name="returnTo"
-              value={`/dashboard/contas/${handle}`}
-            />
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center rounded-full bg-forest px-5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
-            >
-              Sincronizar agora ↻
-            </button>
-          </form>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-3">
+            <PeriodSelector />
+            <SyncButton igAccountId={account.id} variant="primary" />
+          </div>
           <span className="text-xs text-ink-soft">
             Última sync <span className="italic">{timeAgo(account.last_synced_at)}</span>
           </span>
@@ -382,12 +398,12 @@ export default async function AccountDetailPage({
       <section className="mt-16">
         <SectionTitle
           eyebrow="Conteúdo"
-          title="Últimas mídias."
+          title="Dados orgânicos de postagens."
           marginTop={false}
         />
 
-        {/* Tabs filtro */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        {/* Tabs filtro por tipo */}
+        <div className="mb-4 flex flex-wrap gap-2">
           <TabLink
             href={`/dashboard/contas/${handle}`}
             active={activeTab === "tudo"}
@@ -408,7 +424,13 @@ export default async function AccountDetailPage({
           />
         </div>
 
-        <MediaGrid items={media} />
+        <p className="mb-4 text-xs text-ink-soft">
+          {media.length === 0
+            ? "Nenhuma mídia no período selecionado"
+            : `${media.length} ${media.length === 1 ? "mídia" : "mídias"} no período · clique pra ver detalhes`}
+        </p>
+
+        <MediaDisplay items={media} />
       </section>
     </div>
   );
