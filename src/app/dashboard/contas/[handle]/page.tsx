@@ -32,6 +32,11 @@ import { DonutChartDark, DonutLegendDark, type DonutSlice } from "@/components/d
 import { BarChartDark, type BarPoint } from "@/components/dashboard-dark/charts/BarChartDark";
 import { HourlyHeatmapDark } from "@/components/dashboard-dark/charts/HourlyHeatmapDark";
 import { MediaGridDark } from "@/components/dashboard-dark/MediaGridDark";
+import {
+  MediaTableDark,
+  type MediaSortKey,
+  type MediaSortOrd,
+} from "@/components/dashboard-dark/MediaTableDark";
 import { DemographicsTableDark } from "@/components/dashboard-dark/DemographicsTableDark";
 
 const NEON = {
@@ -67,6 +72,9 @@ type SearchParams = Promise<{
   periodo?: string;
   de?: string;
   ate?: string;
+  vis?: string; // "cards" (default) | "lista"
+  sort?: string; // chave de ordenação da tabela
+  ord?: string; // "asc" | "desc"
 }>;
 
 export default async function AccountDetailDarkPage({
@@ -92,6 +100,28 @@ export default async function AccountDetailDarkPage({
   const productType = PRODUCT_TYPE_FROM_TAB[activeTab];
   const period = resolvePeriod(sParams.periodo, sParams.de, sParams.ate);
   const previous = previousPeriod(period);
+
+  // Toggle Cards/Lista + ordenação da tabela (validados com whitelist)
+  const vis: "cards" | "lista" = sParams.vis === "lista" ? "lista" : "cards";
+  const ALLOWED_SORT: MediaSortKey[] = [
+    "views",
+    "reach",
+    "interactions",
+    "engagement",
+    "likes",
+    "comments",
+    "saves",
+    "shares",
+    "profile_visits",
+    "follows",
+    "posted_at",
+  ];
+  const sortKey: MediaSortKey = (ALLOWED_SORT as string[]).includes(
+    sParams.sort ?? "",
+  )
+    ? (sParams.sort as MediaSortKey)
+    : "reach";
+  const sortOrd: MediaSortOrd = sParams.ord === "asc" ? "asc" : "desc";
 
   const {
     data: { user },
@@ -458,36 +488,139 @@ export default async function AccountDetailDarkPage({
           />
         </section>
 
-        {/* Tabs e Mídia grid */}
+        {/* Tabs e Mídia */}
         <SectionTitle eyebrow="Conteúdo" title="Posts no período." />
-        <div className="mb-2 flex flex-wrap gap-2">
-          <TabLink
-            href={`/dashboard/contas/${handle}?periodo=${sParams.periodo ?? "30d"}`}
-            active={activeTab === "tudo"}
-            label="Tudo"
-            count={mediaCounts.TOTAL}
-          />
-          <TabLink
-            href={`/dashboard/contas/${handle}?aba=posts&periodo=${sParams.periodo ?? "30d"}`}
-            active={activeTab === "posts"}
-            label="Posts"
-            count={mediaCounts.FEED}
-          />
-          <TabLink
-            href={`/dashboard/contas/${handle}?aba=reels&periodo=${sParams.periodo ?? "30d"}`}
-            active={activeTab === "reels"}
-            label="Reels"
-            count={mediaCounts.REELS}
-          />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <TabLink
+              href={buildContentHref(handle, sParams, { aba: undefined })}
+              active={activeTab === "tudo"}
+              label="Tudo"
+              count={mediaCounts.TOTAL}
+            />
+            <TabLink
+              href={buildContentHref(handle, sParams, { aba: "posts" })}
+              active={activeTab === "posts"}
+              label="Posts"
+              count={mediaCounts.FEED}
+            />
+            <TabLink
+              href={buildContentHref(handle, sParams, { aba: "reels" })}
+              active={activeTab === "reels"}
+              label="Reels"
+              count={mediaCounts.REELS}
+            />
+          </div>
+          <ViewToggle handle={handle} sParams={sParams} vis={vis} />
         </div>
         <p className="mb-3 text-xs text-white/40">
           {media.length === 0
             ? "Nenhuma mídia no período selecionado"
-            : `${media.length} ${media.length === 1 ? "mídia" : "mídias"} · top 12 exibidas`}
+            : vis === "lista"
+              ? `${media.length} ${media.length === 1 ? "mídia" : "mídias"} no período · clique nas colunas pra ordenar`
+              : `${media.length} ${media.length === 1 ? "mídia" : "mídias"} · top 12 exibidas`}
         </p>
-        <MediaGridDark items={media} />
+        {vis === "lista" ? (
+          <MediaTableDark
+            items={media}
+            sort={sortKey}
+            ord={sortOrd}
+            basePath={`/dashboard/contas/${handle}`}
+            baseParams={{
+              aba: sParams.aba,
+              periodo: sParams.periodo,
+              de: sParams.de,
+              ate: sParams.ate,
+              vis: "lista",
+            }}
+          />
+        ) : (
+          <MediaGridDark items={media} />
+        )}
       </main>
 
+    </div>
+  );
+}
+
+function buildContentHref(
+  handle: string,
+  sParams: { periodo?: string; de?: string; ate?: string; vis?: string; sort?: string; ord?: string },
+  overrides: { aba?: string | undefined },
+): string {
+  const params = new URLSearchParams();
+  if (overrides.aba !== undefined) {
+    params.set("aba", overrides.aba);
+  } else if (overrides.aba === undefined && Object.prototype.hasOwnProperty.call(overrides, "aba")) {
+    // explicitly clear
+  }
+  if (sParams.periodo) params.set("periodo", sParams.periodo);
+  if (sParams.de) params.set("de", sParams.de);
+  if (sParams.ate) params.set("ate", sParams.ate);
+  if (sParams.vis) params.set("vis", sParams.vis);
+  if (sParams.sort) params.set("sort", sParams.sort);
+  if (sParams.ord) params.set("ord", sParams.ord);
+  const q = params.toString();
+  return `/dashboard/contas/${handle}${q ? `?${q}` : ""}`;
+}
+
+function ViewToggle({
+  handle,
+  sParams,
+  vis,
+}: {
+  handle: string;
+  sParams: { aba?: string; periodo?: string; de?: string; ate?: string; sort?: string; ord?: string };
+  vis: "cards" | "lista";
+}) {
+  function hrefFor(target: "cards" | "lista") {
+    const params = new URLSearchParams();
+    if (sParams.aba) params.set("aba", sParams.aba);
+    if (sParams.periodo) params.set("periodo", sParams.periodo);
+    if (sParams.de) params.set("de", sParams.de);
+    if (sParams.ate) params.set("ate", sParams.ate);
+    if (target === "lista") params.set("vis", "lista");
+    // se for cards, omite vis (default)
+    if (target === "lista" && sParams.sort) params.set("sort", sParams.sort);
+    if (target === "lista" && sParams.ord) params.set("ord", sParams.ord);
+    const q = params.toString();
+    return `/dashboard/contas/${handle}${q ? `?${q}` : ""}`;
+  }
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border border-white/[0.06] bg-surface/60 p-1">
+      <Link
+        href={hrefFor("cards")}
+        className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
+          vis === "cards"
+            ? "bg-surface-2 text-white dark-glow-purple"
+            : "text-white/60 hover:text-white"
+        }`}
+        aria-current={vis === "cards"}
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3" aria-hidden="true">
+          <rect x="1" y="1" width="6" height="6" rx="1" />
+          <rect x="9" y="1" width="6" height="6" rx="1" />
+          <rect x="1" y="9" width="6" height="6" rx="1" />
+          <rect x="9" y="9" width="6" height="6" rx="1" />
+        </svg>
+        Cards
+      </Link>
+      <Link
+        href={hrefFor("lista")}
+        className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
+          vis === "lista"
+            ? "bg-surface-2 text-white dark-glow-purple"
+            : "text-white/60 hover:text-white"
+        }`}
+        aria-current={vis === "lista"}
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3" aria-hidden="true">
+          <rect x="1" y="2" width="14" height="2" rx="0.5" />
+          <rect x="1" y="7" width="14" height="2" rx="0.5" />
+          <rect x="1" y="12" width="14" height="2" rx="0.5" />
+        </svg>
+        Lista
+      </Link>
     </div>
   );
 }
