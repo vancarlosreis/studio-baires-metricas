@@ -289,7 +289,6 @@ function CoverPage({ data }: { data: ReportData }) {
             style={{
               fontFamily: "IvyPresto",
               fontWeight: 400,
-              fontStyle: "italic",
               fontSize: 22,
               color: COLORS.burgundy,
             }}
@@ -421,7 +420,6 @@ function KpiPage({ data }: { data: ReportData }) {
           style={{
             fontFamily: "IvyPresto",
             fontWeight: 400,
-            fontStyle: "italic",
             fontSize: 18,
             lineHeight: 1.4,
             color: COLORS.ink,
@@ -753,7 +751,6 @@ function BackCoverPage() {
           style={{
             fontFamily: "IvyPresto",
             fontWeight: 600,
-            fontStyle: "italic",
             fontSize: 80,
             lineHeight: 1,
             color: COLORS.burgundy,
