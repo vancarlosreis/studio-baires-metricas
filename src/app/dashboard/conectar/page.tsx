@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { startInstagramOAuth } from "@/app/actions/instagram";
+import {
+  startFacebookOAuth,
+  startInstagramOAuth,
+} from "@/app/actions/instagram";
 
 function InstagramIcon({ className = "" }: { className?: string }) {
   return (
@@ -20,12 +23,16 @@ type SearchParams = Promise<{
 }>;
 
 const ERROR_MESSAGES: Record<string, string> = {
-  missing_params: "O Instagram não retornou os parâmetros esperados. Tente novamente.",
+  missing_params: "O Meta não retornou os parâmetros esperados. Tente novamente.",
   invalid_state: "Validação de segurança falhou. Tente novamente a partir do botão abaixo.",
   not_authenticated: "Você precisa estar logada pra conectar uma conta.",
   db_error: "Erro ao salvar a conta no banco de dados.",
-  oauth_failed: "Falha na autorização com o Instagram.",
+  oauth_failed: "Falha na autorização.",
   access_denied: "Você negou o acesso. Tente novamente se mudar de ideia.",
+  meta_session_expired: "Sessão do Meta expirou. Refaça a conexão.",
+  fetch_pages_failed: "Não consegui listar suas Páginas do Facebook. Verifique as permissões.",
+  selection_mismatch: "As contas selecionadas não bateram com as disponíveis. Tente novamente.",
+  no_selection: "Selecione ao menos uma conta pra importar.",
 };
 
 export default async function ConectarPage({
@@ -123,7 +130,53 @@ export default async function ConectarPage({
         </form>
 
         <p className="mt-4 text-center text-xs text-ink-soft">
-          Você será redirecionada pro site oficial do Instagram.
+          Uma conta por vez · Você será redirecionada pro Instagram
+        </p>
+      </div>
+
+      {/* Segundo caminho: Meta Business Suite */}
+      <div className="mt-6 rounded-3xl border border-ink/10 bg-paper p-8 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="headline-display text-2xl text-ink">
+              Importar do Meta Business Suite
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+              Lista todas as contas Instagram conectadas às Páginas do Facebook que
+              você gerencia — perfeito pra agência que quer importar vários
+              clientes de uma vez.
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-tape/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink">
+            Novo
+          </span>
+        </div>
+
+        <ul className="mt-4 space-y-2 text-xs text-ink-soft">
+          <li className="flex gap-2">
+            <span className="text-forest">✓</span>
+            <span>
+              Cada conta IG deve ter Página do FB vinculada (Meta Business Suite)
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-forest">✓</span>
+            <span>Permite selecionar quais importar — não traz todas automaticamente</span>
+          </li>
+        </ul>
+
+        <form action={startFacebookOAuth} className="mt-6">
+          <button
+            type="submit"
+            className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-ink/20 bg-cream px-8 text-sm font-semibold text-ink transition-colors hover:border-ink/40"
+          >
+            <FacebookIcon className="h-5 w-5" />
+            Conectar via Facebook
+          </button>
+        </form>
+
+        <p className="mt-3 text-center text-xs text-ink-soft">
+          Você será redirecionada pro Facebook · Não publicamos nada em seu nome
         </p>
       </div>
 
@@ -132,5 +185,18 @@ export default async function ConectarPage({
         Conta pessoal não funciona — converta nas configurações do Instagram antes.
       </p>
     </div>
+  );
+}
+
+function FacebookIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
   );
 }
