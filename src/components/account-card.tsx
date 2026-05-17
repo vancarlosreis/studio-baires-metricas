@@ -98,6 +98,7 @@ export function AccountCard({
         </span>
         <form action={syncAccountFormAction}>
           <input type="hidden" name="igAccountId" value={account.id} />
+          <input type="hidden" name="returnTo" value="/dashboard" />
           <button
             type="submit"
             className="text-xs font-semibold text-forest underline-offset-2 hover:underline"

@@ -151,7 +151,7 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
         .eq("id", job.id);
     }
 
-    revalidatePath("/dashboard");
+    revalidatePath("/dashboard", "layout");
     return {
       ok: true,
       igAccountId: account.id,
@@ -329,7 +329,7 @@ export async function syncAccountMedia(
         .eq("id", job.id);
     }
 
-    revalidatePath("/dashboard");
+    revalidatePath("/dashboard", "layout");
     return {
       ok: true,
       igAccountId: account.id,
@@ -383,10 +383,15 @@ export async function syncAccountFull(igAccountId: string): Promise<{
 
 export async function syncAccountFormAction(formData: FormData) {
   const igAccountId = String(formData.get("igAccountId") ?? "");
-  if (!igAccountId) redirect("/dashboard?error=missing_account");
+  // `returnTo` permite voltar pra mesma página (detalhe ou dashboard)
+  const returnToRaw = String(formData.get("returnTo") ?? "/dashboard");
+  // Sanitiza: só aceita paths internos
+  const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/dashboard";
+
+  if (!igAccountId) redirect(`${returnTo}?error=missing_account`);
 
   const result = await syncAccountFull(igAccountId);
-  const url = new URL("/dashboard", "https://placeholder");
+  const url = new URL(returnTo, "https://placeholder");
   if (result.ok) {
     url.searchParams.set("synced", igAccountId);
     if (result.warnings.length > 0) {

@@ -128,6 +128,11 @@ export default async function AccountDetailPage({
         <div className="flex flex-col items-end gap-2">
           <form action={syncAccountFormAction}>
             <input type="hidden" name="igAccountId" value={account.id} />
+            <input
+              type="hidden"
+              name="returnTo"
+              value={`/dashboard/contas/${handle}`}
+            />
             <button
               type="submit"
               className="inline-flex h-10 items-center rounded-full bg-forest px-5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
