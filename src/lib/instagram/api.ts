@@ -502,6 +502,11 @@ const STORY_METRICS = [
 // o batch principal. plays geralmente funciona mas depende da idade/tipo do reel.
 const REELS_OPTIONAL_METRICS = ["plays"];
 
+// Métricas opcionais pra qualquer mídia (FEED + REELS). Algumas mídias
+// antigas ou de certos tipos podem não ter, então vai em batch isolado.
+// `views` é o substituto unificado v22+ de impressions/plays.
+const MEDIA_OPTIONAL_METRICS = ["views", "profile_visits", "follows"];
+
 async function fetchInsightsBatch(
   accessToken: string,
   mediaId: string,
@@ -561,6 +566,29 @@ export async function getMediaInsightsResilient(
     errors.push(
       `safe: ${err instanceof Error ? err.message : "erro desconhecido"}`,
     );
+  }
+
+  // FEED + REELS: tenta métricas opcionais (views, profile_visits, follows)
+  // isoladas — não bloqueia o batch principal. Algumas mídias antigas/feed
+  // específico podem não ter algumas dessas.
+  try {
+    const opt = await fetchInsightsBatch(
+      accessToken,
+      mediaId,
+      MEDIA_OPTIONAL_METRICS,
+      ctx,
+    );
+    insights.push(...opt);
+  } catch {
+    // Tenta uma a uma se o batch falhar (uma métrica ruim quebra o batch inteiro)
+    for (const metric of MEDIA_OPTIONAL_METRICS) {
+      try {
+        const single = await fetchInsightsBatch(accessToken, mediaId, [metric], ctx);
+        insights.push(...single);
+      } catch {
+        // ignora individualmente
+      }
+    }
   }
 
   // REELS: tenta plays separado (se falhar, não impacta o resto)

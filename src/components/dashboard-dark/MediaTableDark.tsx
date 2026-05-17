@@ -185,6 +185,7 @@ export function MediaTableDark({
                         sort,
                         ord,
                       )}
+                      scroll={false}
                       className="inline-block transition hover:text-white"
                     >
                       {col.label}
