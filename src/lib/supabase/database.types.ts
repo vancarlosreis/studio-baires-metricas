@@ -179,6 +179,7 @@ export type Database = {
           ig_account_id: string
           ig_media_id: string
           kind: Database["public"]["Enums"]["media_kind"]
+          media_product_type: string | null
           media_url: string | null
           permalink: string | null
           posted_at: string
@@ -194,6 +195,7 @@ export type Database = {
           ig_account_id: string
           ig_media_id: string
           kind: Database["public"]["Enums"]["media_kind"]
+          media_product_type?: string | null
           media_url?: string | null
           permalink?: string | null
           posted_at: string
@@ -209,6 +211,7 @@ export type Database = {
           ig_account_id?: string
           ig_media_id?: string
           kind?: Database["public"]["Enums"]["media_kind"]
+          media_product_type?: string | null
           media_url?: string | null
           permalink?: string | null
           posted_at?: string
@@ -244,7 +247,9 @@ export type Database = {
           snapshot_at: string
           taps_back: number | null
           taps_forward: number | null
+          total_interactions: number | null
           video_views: number | null
+          views: number | null
         }
         Insert: {
           comments?: number | null
@@ -263,7 +268,9 @@ export type Database = {
           snapshot_at?: string
           taps_back?: number | null
           taps_forward?: number | null
+          total_interactions?: number | null
           video_views?: number | null
+          views?: number | null
         }
         Update: {
           comments?: number | null
@@ -282,7 +289,9 @@ export type Database = {
           snapshot_at?: string
           taps_back?: number | null
           taps_forward?: number | null
+          total_interactions?: number | null
           video_views?: number | null
+          views?: number | null
         }
         Relationships: [
           {

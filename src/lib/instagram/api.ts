@@ -207,7 +207,148 @@ export function readInsightValue(
  */
 export function findMetric(
   insights: InsightResult[],
-  name: InsightsMetric,
+  name: string,
 ): number | null {
   return readInsightValue(insights.find((i) => i.name === name));
+}
+
+// ============================================================================
+// Media (posts, reels, stories)
+// ============================================================================
+
+export type MediaType = "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | string;
+export type MediaProductType = "FEED" | "REELS" | "STORY" | "AD" | "IGTV" | string;
+
+export type MediaItem = {
+  id: string;
+  media_type: MediaType;
+  media_product_type?: MediaProductType;
+  caption?: string;
+  permalink?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  timestamp: string; // ISO 8601
+  username?: string;
+};
+
+export type MediaListResponse = {
+  data: MediaItem[];
+  nextCursor: string | null;
+};
+
+/**
+ * Lista mídias do usuário autenticado, ordenadas por mais recentes.
+ * Pagina automaticamente até atingir `maxItems` (padrão 50).
+ */
+export async function getMediaList(
+  accessToken: string,
+  options: { maxItems?: number; pageSize?: number } = {},
+): Promise<MediaListResponse> {
+  const maxItems = options.maxItems ?? 50;
+  const pageSize = Math.min(options.pageSize ?? 25, 100);
+  const fields = [
+    "id",
+    "media_type",
+    "media_product_type",
+    "caption",
+    "permalink",
+    "media_url",
+    "thumbnail_url",
+    "timestamp",
+    "username",
+  ].join(",");
+
+  const collected: MediaItem[] = [];
+  let nextUrl: string | null = `${GRAPH_API_BASE}/me/media?${new URLSearchParams({
+    fields,
+    limit: String(pageSize),
+    access_token: accessToken,
+  })}`;
+
+  while (nextUrl && collected.length < maxItems) {
+    const res: Response = await fetch(nextUrl);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`getMediaList ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const json = await res.json();
+    const data: MediaItem[] = (json.data ?? []) as MediaItem[];
+    collected.push(...data);
+    nextUrl = json.paging?.next ?? null;
+  }
+
+  return {
+    data: collected.slice(0, maxItems),
+    nextCursor: nextUrl,
+  };
+}
+
+// Métricas suportadas por tipo de mídia.
+// Ref: docs Instagram Graph API v23.
+const FEED_METRICS = [
+  "reach",
+  "likes",
+  "comments",
+  "shares",
+  "saves",
+  "total_interactions",
+  "views",
+];
+
+const REELS_METRICS = [
+  "reach",
+  "likes",
+  "comments",
+  "shares",
+  "saves",
+  "total_interactions",
+  "views",
+  "plays",
+];
+
+const STORY_METRICS = [
+  "reach",
+  "impressions",
+  "taps_forward",
+  "taps_back",
+  "exits",
+  "replies",
+];
+
+export function getMetricsForMedia(
+  productType: MediaProductType | undefined,
+): string[] {
+  if (productType === "REELS") return REELS_METRICS;
+  if (productType === "STORY") return STORY_METRICS;
+  return FEED_METRICS;
+}
+
+/**
+ * Busca insights de uma mídia específica.
+ * Algumas métricas falham por tipo de mídia — usa tolerância parcial.
+ */
+export async function getMediaInsightsResilient(
+  accessToken: string,
+  mediaId: string,
+  productType: MediaProductType | undefined,
+): Promise<{ insights: InsightResult[]; errors: string[] }> {
+  const metrics = getMetricsForMedia(productType);
+  const errors: string[] = [];
+
+  try {
+    const params = new URLSearchParams({
+      metric: metrics.join(","),
+      access_token: accessToken,
+    });
+    const res = await fetch(`${GRAPH_API_BASE}/${mediaId}/insights?${params}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status}: ${text.slice(0, 200)}`);
+    }
+    const json = await res.json();
+    return { insights: (json.data ?? []) as InsightResult[], errors };
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : "erro desconhecido");
+    return { insights: [], errors };
+  }
 }

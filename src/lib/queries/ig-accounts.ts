@@ -81,3 +81,78 @@ export function getAccountInitials(account: IgAccountRow): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
+
+export type MediaRow = Database["public"]["Tables"]["media"]["Row"];
+export type MediaInsightRow =
+  Database["public"]["Tables"]["media_insights"]["Row"];
+
+export type MediaWithLatestInsight = MediaRow & {
+  latest_insight: MediaInsightRow | null;
+};
+
+/**
+ * Lista snapshots de uma conta nos últimos N dias (asc por data).
+ */
+export async function listAccountSnapshots(
+  supabase: DB,
+  igAccountId: string,
+  days: number,
+): Promise<AccountSnapshotRow[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceIso = since.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("account_snapshots")
+    .select("*")
+    .eq("ig_account_id", igAccountId)
+    .gte("snapshot_date", sinceIso)
+    .order("snapshot_date", { ascending: true });
+
+  if (error) {
+    console.error("[listAccountSnapshots] erro:", error);
+    return [];
+  }
+  return data ?? [];
+}
+
+/**
+ * Lista as últimas mídias de uma conta + último insight de cada.
+ */
+export async function listMediaWithInsights(
+  supabase: DB,
+  igAccountId: string,
+  limit = 50,
+): Promise<MediaWithLatestInsight[]> {
+  const { data: media, error } = await supabase
+    .from("media")
+    .select("*")
+    .eq("ig_account_id", igAccountId)
+    .order("posted_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[listMediaWithInsights] erro:", error);
+    return [];
+  }
+  if (!media || media.length === 0) return [];
+
+  const mediaIds = media.map((m) => m.id);
+  const { data: insights } = await supabase
+    .from("media_insights")
+    .select("*")
+    .in("media_id", mediaIds)
+    .order("snapshot_at", { ascending: false });
+
+  const latestByMedia = new Map<string, MediaInsightRow>();
+  for (const ins of insights ?? []) {
+    if (!latestByMedia.has(ins.media_id)) {
+      latestByMedia.set(ins.media_id, ins);
+    }
+  }
+
+  return media.map((m) => ({
+    ...m,
+    latest_insight: latestByMedia.get(m.id) ?? null,
+  }));
+}
