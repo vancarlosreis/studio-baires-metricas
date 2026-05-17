@@ -1,15 +1,18 @@
 /**
- * Helpers da Instagram Graph API (leitura de dados de contas Business).
- * Usado pelos sync jobs pra popular account_snapshots e media.
+ * Helpers da Instagram Graph API (Business Login).
+ * Suporta contas BUSINESS e MEDIA_CREATOR — cada uma tem conjunto diferente
+ * de métricas disponíveis.
  */
 
 const GRAPH_API_BASE = "https://graph.instagram.com/v23.0";
+
+export type AccountType = "BUSINESS" | "MEDIA_CREATOR" | "PERSONAL" | string;
 
 export type AccountProfileResponse = {
   user_id: string;
   username: string;
   name?: string;
-  account_type?: string;
+  account_type?: AccountType;
   profile_picture_url?: string;
   media_count?: number;
   followers_count?: number;
@@ -17,8 +20,7 @@ export type AccountProfileResponse = {
 };
 
 /**
- * Busca perfil + contadores agregados (followers, follows, media_count).
- * Combina /me?fields=... numa única chamada.
+ * Busca perfil + contadores agregados em uma única chamada.
  */
 export async function getAccountProfile(
   accessToken: string,
@@ -34,11 +36,7 @@ export async function getAccountProfile(
     "follows_count",
   ].join(",");
 
-  const params = new URLSearchParams({
-    fields,
-    access_token: accessToken,
-  });
-
+  const params = new URLSearchParams({ fields, access_token: accessToken });
   const res = await fetch(`${GRAPH_API_BASE}/me?${params}`);
   if (!res.ok) {
     const text = await res.text();
@@ -57,39 +55,73 @@ export async function getAccountProfile(
   };
 }
 
+// ============================================================================
+// Métricas — conjuntos por tipo de conta
+// ============================================================================
+
 export type InsightsMetric =
   | "reach"
-  | "impressions"
-  | "profile_views"
-  | "website_clicks"
   | "accounts_engaged"
-  | "total_interactions";
+  | "total_interactions"
+  | "likes"
+  | "comments"
+  | "shares"
+  | "saves"
+  | "replies"
+  | "profile_views" // só BUSINESS
+  | "website_clicks"; // só BUSINESS
 
-export type InsightDataPoint = {
-  end_time: string;
-  value: number;
-};
+/** Métricas disponíveis pra qualquer conta (BUSINESS + CREATOR). */
+export const UNIVERSAL_METRICS: InsightsMetric[] = [
+  "reach",
+  "accounts_engaged",
+  "total_interactions",
+  "likes",
+  "comments",
+  "shares",
+  "saves",
+];
+
+/** Métricas adicionais disponíveis só pra contas BUSINESS. */
+export const BUSINESS_ONLY_METRICS: InsightsMetric[] = [
+  "profile_views",
+  "website_clicks",
+];
+
+/**
+ * Decide quais métricas pedir baseado no account_type.
+ * CREATOR/MEDIA_CREATOR: só universais. BUSINESS: universais + business-only.
+ */
+export function getMetricsForAccountType(
+  accountType: AccountType | undefined,
+): InsightsMetric[] {
+  if (accountType === "BUSINESS") {
+    return [...UNIVERSAL_METRICS, ...BUSINESS_ONLY_METRICS];
+  }
+  return UNIVERSAL_METRICS;
+}
 
 export type InsightResult = {
   name: InsightsMetric;
   period: string;
-  values: InsightDataPoint[];
+  total_value?: { value: number };
+  values?: { end_time: string; value: number }[];
 };
 
 /**
  * Busca métricas agregadas via /me/insights.
  * Requer scope `instagram_business_manage_insights`.
  *
- * @param accessToken - Long-lived token
- * @param metrics - Lista de métricas a buscar
- * @param since - Unix timestamp (segundos) — opcional
- * @param until - Unix timestamp (segundos) — opcional
+ * Usa metric_type=total_value pra obter o total agregado no período
+ * (since → until). Sem range, retorna apenas o dia atual.
  */
 export async function getAccountInsights(
   accessToken: string,
   metrics: InsightsMetric[],
   options: { since?: number; until?: number } = {},
 ): Promise<InsightResult[]> {
+  if (metrics.length === 0) return [];
+
   const params = new URLSearchParams({
     metric: metrics.join(","),
     period: "day",
@@ -109,21 +141,73 @@ export async function getAccountInsights(
 }
 
 /**
- * Agrega valores de um InsightResult em um único número (total do período).
+ * Versão tolerante: chama getAccountInsights por subset (universais primeiro,
+ * depois business-only se aplicável). Se um subset falhar, retorna o que conseguiu.
  */
-export function sumInsight(insight: InsightResult | undefined): number | null {
-  if (!insight) return null;
-  // Pra metric_type=total_value, vem como total_value: { value: N }
-  // Pra time_series, vem como values: [{ end_time, value }]
-  const anyInsight = insight as unknown as {
-    total_value?: { value: number };
-    values?: InsightDataPoint[];
-  };
-  if (anyInsight.total_value && typeof anyInsight.total_value.value === "number") {
-    return anyInsight.total_value.value;
+export async function getAccountInsightsResilient(
+  accessToken: string,
+  accountType: AccountType | undefined,
+  options: { since?: number; until?: number } = {},
+): Promise<{ insights: InsightResult[]; errors: string[] }> {
+  const errors: string[] = [];
+  const insights: InsightResult[] = [];
+
+  // 1. Métricas universais
+  try {
+    const universal = await getAccountInsights(
+      accessToken,
+      UNIVERSAL_METRICS,
+      options,
+    );
+    insights.push(...universal);
+  } catch (err) {
+    errors.push(
+      `universal: ${err instanceof Error ? err.message : "erro desconhecido"}`,
+    );
   }
-  if (Array.isArray(anyInsight.values) && anyInsight.values.length > 0) {
-    return anyInsight.values.reduce((sum, p) => sum + (p.value ?? 0), 0);
+
+  // 2. Métricas business-only (se aplicável)
+  if (accountType === "BUSINESS") {
+    try {
+      const businessOnly = await getAccountInsights(
+        accessToken,
+        BUSINESS_ONLY_METRICS,
+        options,
+      );
+      insights.push(...businessOnly);
+    } catch (err) {
+      errors.push(
+        `business-only: ${err instanceof Error ? err.message : "erro desconhecido"}`,
+      );
+    }
+  }
+
+  return { insights, errors };
+}
+
+/**
+ * Extrai o valor numérico de um InsightResult.
+ * Lida com total_value.value (preferido) ou soma values[].
+ */
+export function readInsightValue(
+  insight: InsightResult | undefined,
+): number | null {
+  if (!insight) return null;
+  if (insight.total_value && typeof insight.total_value.value === "number") {
+    return insight.total_value.value;
+  }
+  if (Array.isArray(insight.values) && insight.values.length > 0) {
+    return insight.values.reduce((sum, p) => sum + (p.value ?? 0), 0);
   }
   return null;
+}
+
+/**
+ * Encontra uma métrica específica num array de resultados.
+ */
+export function findMetric(
+  insights: InsightResult[],
+  name: InsightsMetric,
+): number | null {
+  return readInsightValue(insights.find((i) => i.name === name));
 }

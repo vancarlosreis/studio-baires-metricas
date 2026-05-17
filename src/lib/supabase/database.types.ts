@@ -41,45 +41,63 @@ export type Database = {
     Tables: {
       account_snapshots: {
         Row: {
+          accounts_engaged: number | null
+          comments: number | null
           created_at: string
           followers_count: number | null
           follows_count: number | null
           id: string
           ig_account_id: string
           impressions: number | null
+          likes: number | null
           media_count: number | null
           profile_views: number | null
           raw_payload: Json | null
           reach: number | null
+          saves: number | null
+          shares: number | null
           snapshot_date: string
+          total_interactions: number | null
           website_clicks: number | null
         }
         Insert: {
+          accounts_engaged?: number | null
+          comments?: number | null
           created_at?: string
           followers_count?: number | null
           follows_count?: number | null
           id?: string
           ig_account_id: string
           impressions?: number | null
+          likes?: number | null
           media_count?: number | null
           profile_views?: number | null
           raw_payload?: Json | null
           reach?: number | null
+          saves?: number | null
+          shares?: number | null
           snapshot_date: string
+          total_interactions?: number | null
           website_clicks?: number | null
         }
         Update: {
+          accounts_engaged?: number | null
+          comments?: number | null
           created_at?: string
           followers_count?: number | null
           follows_count?: number | null
           id?: string
           ig_account_id?: string
           impressions?: number | null
+          likes?: number | null
           media_count?: number | null
           profile_views?: number | null
           raw_payload?: Json | null
           reach?: number | null
+          saves?: number | null
+          shares?: number | null
           snapshot_date?: string
+          total_interactions?: number | null
           website_clicks?: number | null
         }
         Relationships: [
@@ -95,6 +113,7 @@ export type Database = {
       ig_accounts: {
         Row: {
           access_token_encrypted: string
+          account_type: string | null
           auth_method: Database["public"]["Enums"]["ig_auth_method"]
           connected_at: string
           created_at: string
@@ -113,6 +132,7 @@ export type Database = {
         }
         Insert: {
           access_token_encrypted: string
+          account_type?: string | null
           auth_method?: Database["public"]["Enums"]["ig_auth_method"]
           connected_at?: string
           created_at?: string
@@ -131,6 +151,7 @@ export type Database = {
         }
         Update: {
           access_token_encrypted?: string
+          account_type?: string | null
           auth_method?: Database["public"]["Enums"]["ig_auth_method"]
           connected_at?: string
           created_at?: string

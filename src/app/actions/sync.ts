@@ -6,27 +6,19 @@ import { createClient } from "@/lib/supabase/server";
 import { decryptToken } from "@/lib/crypto";
 import {
   getAccountProfile,
-  getAccountInsights,
-  sumInsight,
-  type InsightsMetric,
+  getAccountInsightsResilient,
+  findMetric,
 } from "@/lib/instagram/api";
 
-const PROFILE_INSIGHT_METRICS: InsightsMetric[] = [
-  "reach",
-  "impressions",
-  "profile_views",
-  "website_clicks",
-];
+const INSIGHTS_PERIOD_DAYS = 7;
 
 export type SyncResult =
-  | { ok: true; igAccountId: string; snapshot_date: string }
+  | { ok: true; igAccountId: string; snapshot_date: string; warnings: string[] }
   | { ok: false; error: string };
 
 /**
- * Sincroniza uma conta IG: busca perfil + insights do dia e salva snapshot.
- * Retorna `{ ok: true }` em sucesso ou `{ ok: false, error }` em falha.
- *
- * NOTA: não throws — retorna shape de Result pra UI tratar.
+ * Sincroniza uma conta IG: busca perfil + insights (últimos 7 dias) e salva
+ * snapshot do dia. Adapta as métricas baseado no account_type (BUSINESS vs CREATOR).
  */
 export async function syncAccountProfile(igAccountId: string): Promise<SyncResult> {
   const supabase = await createClient();
@@ -35,7 +27,6 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Não autenticado." };
 
-  // Busca a ig_account (RLS garante isolamento)
   const { data: account, error: fetchErr } = await supabase
     .from("ig_accounts")
     .select("*")
@@ -46,7 +37,6 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
     return { ok: false, error: "Conta não encontrada." };
   }
 
-  // Cria um sync_job pra log/observabilidade
   const { data: job } = await supabase
     .from("sync_jobs")
     .insert({
@@ -60,11 +50,10 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
     .single();
 
   try {
-    // Descriptografa o token. bytea volta como hex string ou Uint8Array dependendo do client.
+    // Descriptografa o token
     const tokenBlob = account.access_token_encrypted;
     let buffer: Buffer;
     if (typeof tokenBlob === "string") {
-      // Vem como "\\x..." (hex prefixado) do Postgres
       const hex = tokenBlob.startsWith("\\x") ? tokenBlob.slice(2) : tokenBlob;
       buffer = Buffer.from(hex, "hex");
     } else {
@@ -72,34 +61,32 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
     }
     const accessToken = decryptToken(buffer);
 
-    // 1. Perfil + contadores agregados
+    // 1. Perfil
     const profile = await getAccountProfile(accessToken);
 
-    // 2. Insights agregados (reach, impressions, profile_views, website_clicks)
-    let insights: Awaited<ReturnType<typeof getAccountInsights>> = [];
-    try {
-      insights = await getAccountInsights(accessToken, PROFILE_INSIGHT_METRICS);
-    } catch (err) {
-      // Insights podem falhar se o app não tiver o scope ainda — não fatal
-      console.warn("[syncAccountProfile] insights falhou:", err);
-    }
+    // 2. Insights — adapta por account_type, tolerante a falhas parciais
+    const until = Math.floor(Date.now() / 1000);
+    const since = until - INSIGHTS_PERIOD_DAYS * 24 * 60 * 60;
+    const { insights, errors: insightErrors } = await getAccountInsightsResilient(
+      accessToken,
+      profile.account_type,
+      { since, until },
+    );
 
-    const findInsight = (name: InsightsMetric) =>
-      insights.find((i) => i.name === name);
-
-    // 3. Atualiza metadados do perfil (foto, nome, account_type podem ter mudado)
+    // 3. Atualiza ig_accounts (metadata + account_type)
     await supabase
       .from("ig_accounts")
       .update({
         ig_account_name: profile.name ?? account.ig_account_name,
         ig_profile_picture_url:
           profile.profile_picture_url ?? account.ig_profile_picture_url,
+        account_type: profile.account_type ?? null,
         last_synced_at: new Date().toISOString(),
       })
       .eq("id", account.id);
 
-    // 4. Salva snapshot do dia (upsert por chave única ig_account_id+date)
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    // 4. Salva snapshot do dia
+    const today = new Date().toISOString().slice(0, 10);
     const { error: snapErr } = await supabase
       .from("account_snapshots")
       .upsert(
@@ -109,30 +96,47 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
           followers_count: profile.followers_count ?? null,
           follows_count: profile.follows_count ?? null,
           media_count: profile.media_count ?? null,
-          reach: sumInsight(findInsight("reach")),
-          impressions: sumInsight(findInsight("impressions")),
-          profile_views: sumInsight(findInsight("profile_views")),
-          website_clicks: sumInsight(findInsight("website_clicks")),
-          raw_payload: { profile, insights } as unknown as never,
+          // Universais (funciona em BUSINESS + CREATOR)
+          reach: findMetric(insights, "reach"),
+          accounts_engaged: findMetric(insights, "accounts_engaged"),
+          total_interactions: findMetric(insights, "total_interactions"),
+          likes: findMetric(insights, "likes"),
+          comments: findMetric(insights, "comments"),
+          shares: findMetric(insights, "shares"),
+          saves: findMetric(insights, "saves"),
+          // Business-only (vai ser null pra contas CREATOR)
+          profile_views: findMetric(insights, "profile_views"),
+          website_clicks: findMetric(insights, "website_clicks"),
+          raw_payload: {
+            profile,
+            insights,
+            errors: insightErrors,
+            period: { since, until, days: INSIGHTS_PERIOD_DAYS },
+          } as unknown as never,
         },
         { onConflict: "ig_account_id,snapshot_date" },
       );
 
     if (snapErr) throw new Error(`Falha ao salvar snapshot: ${snapErr.message}`);
 
-    // 5. Marca job como sucesso
     if (job) {
       await supabase
         .from("sync_jobs")
         .update({
           status: "success",
           finished_at: new Date().toISOString(),
+          metadata: { insight_errors: insightErrors } as unknown as never,
         })
         .eq("id", job.id);
     }
 
     revalidatePath("/dashboard");
-    return { ok: true, igAccountId: account.id, snapshot_date: today };
+    return {
+      ok: true,
+      igAccountId: account.id,
+      snapshot_date: today,
+      warnings: insightErrors,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
     console.error("[syncAccountProfile] erro:", message);
@@ -152,10 +156,6 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
   }
 }
 
-/**
- * Versão chamada por <form action={syncAccountFormAction}> que faz redirect
- * com status na query string.
- */
 export async function syncAccountFormAction(formData: FormData) {
   const igAccountId = String(formData.get("igAccountId") ?? "");
   if (!igAccountId) redirect("/dashboard?error=missing_account");
@@ -164,6 +164,9 @@ export async function syncAccountFormAction(formData: FormData) {
   const url = new URL("/dashboard", "https://placeholder");
   if (result.ok) {
     url.searchParams.set("synced", igAccountId);
+    if (result.warnings.length > 0) {
+      url.searchParams.set("sync_warning", result.warnings[0].slice(0, 100));
+    }
   } else {
     url.searchParams.set("sync_error", result.error.slice(0, 100));
   }

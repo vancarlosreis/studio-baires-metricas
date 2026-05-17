@@ -75,7 +75,7 @@ export function AccountCard({
           </div>
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-              Alcance
+              Alcance 7d
             </div>
             <div className="headline-display mt-1 text-2xl text-ink">
               {formatNumber(snap?.reach)}
@@ -83,10 +83,10 @@ export function AccountCard({
           </div>
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-              Posts
+              Engaj. 7d
             </div>
             <div className="headline-display mt-1 text-2xl text-ink">
-              {formatNumber(snap?.media_count)}
+              {formatNumber(snap?.accounts_engaged)}
             </div>
           </div>
         </div>

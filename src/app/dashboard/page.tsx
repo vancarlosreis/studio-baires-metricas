@@ -41,7 +41,9 @@ export default async function DashboardPage({
   const accounts = await listIgAccounts(supabase);
 
   // KPIs agregados — retorna null se nenhum snapshot tem o dado (mostra "—")
-  function sumOr(key: "followers_count" | "reach" | "media_count"): number | null {
+  function sumOr(
+    key: "followers_count" | "reach" | "media_count" | "accounts_engaged",
+  ): number | null {
     const values = accounts
       .map((a) => a.latest_snapshot?.[key])
       .filter((v): v is number => v != null);
@@ -51,7 +53,7 @@ export default async function DashboardPage({
 
   const totalFollowers = sumOr("followers_count");
   const totalReach = sumOr("reach");
-  const totalPosts = sumOr("media_count");
+  const totalEngaged = sumOr("accounts_engaged");
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
@@ -116,15 +118,16 @@ export default async function DashboardPage({
             accent="forest"
           />
           <KpiCard
-            label="Alcance total"
+            label="Alcance (7d)"
             value={formatNumber(totalReach)}
             trend="neutral"
             accent="forest"
           />
           <KpiCard
-            label="Posts totais"
-            value={formatNumber(totalPosts)}
+            label="Contas engajadas (7d)"
+            value={formatNumber(totalEngaged)}
             trend="neutral"
+            accent="forest"
           />
         </section>
       )}
