@@ -4,11 +4,15 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isAllowedEmail } from "@/lib/auth/allowlist";
 
 export type AuthState = { error?: string; sent?: boolean };
 
 const NOT_CONFIGURED =
   "Supabase ainda não foi configurado. Preencha as keys em .env.local.";
+
+const EMAIL_NOT_ALLOWED =
+  "Este e-mail não está autorizado a acessar o sistema.";
 
 export async function signInWithMagicLink(
   _prev: AuthState,
@@ -18,6 +22,9 @@ export async function signInWithMagicLink(
 
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return { error: "Informe seu e-mail." };
+
+  // Bloqueia ANTES de chamar Supabase pra evitar até a tentativa de envio
+  if (!isAllowedEmail(email)) return { error: EMAIL_NOT_ALLOWED };
 
   const supabase = await createClient();
   const headersList = await headers();
