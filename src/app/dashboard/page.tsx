@@ -40,19 +40,18 @@ export default async function DashboardPage({
 
   const accounts = await listIgAccounts(supabase);
 
-  // KPIs agregados a partir dos snapshots
-  const totalFollowers = accounts.reduce(
-    (sum, a) => sum + (a.latest_snapshot?.followers_count ?? 0),
-    0,
-  );
-  const totalReach = accounts.reduce(
-    (sum, a) => sum + (a.latest_snapshot?.reach ?? 0),
-    0,
-  );
-  const totalPosts = accounts.reduce(
-    (sum, a) => sum + (a.latest_snapshot?.media_count ?? 0),
-    0,
-  );
+  // KPIs agregados — retorna null se nenhum snapshot tem o dado (mostra "—")
+  function sumOr(key: "followers_count" | "reach" | "media_count"): number | null {
+    const values = accounts
+      .map((a) => a.latest_snapshot?.[key])
+      .filter((v): v is number => v != null);
+    if (values.length === 0) return null;
+    return values.reduce((s, v) => s + v, 0);
+  }
+
+  const totalFollowers = sumOr("followers_count");
+  const totalReach = sumOr("reach");
+  const totalPosts = sumOr("media_count");
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
@@ -135,14 +134,13 @@ export default async function DashboardPage({
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h2 className="headline-display text-3xl text-ink">
-              {accounts.length === 0 ? (
+              {accounts.length === 1 ? (
                 <>
-                  Suas <span className="italic">contas</span>
+                  Sua <span className="italic">conta</span>
                 </>
               ) : (
                 <>
-                  {accounts.length === 1 ? "Sua" : "Suas"}{" "}
-                  <span className="italic">contas</span>
+                  Suas <span className="italic">contas</span>
                 </>
               )}
             </h2>
