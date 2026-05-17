@@ -24,7 +24,6 @@ import {
 import { resolvePeriod, previousPeriod } from "@/lib/period";
 import { Sidebar } from "@/components/dashboard-dark/Sidebar";
 import { Topbar } from "@/components/dashboard-dark/Topbar";
-import { AiPanel } from "@/components/dashboard-dark/AiPanel";
 import { KpiCard } from "@/components/dashboard-dark/KpiCard";
 import { KpiCompareCard, KpiEmptyCard } from "@/components/dashboard-dark/KpiCompareCard";
 import { ChartShell, SectionTitle } from "@/components/dashboard-dark/ChartShell";
@@ -208,13 +207,8 @@ export default async function AccountDetailDarkPage({
     .join("");
   const userAvatar = (user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null) as string | null;
 
-  // Best posting day (max avgInteractions)
-  const bestDayObj = [...dayOfWeekStats].sort((a, b) => b.avgInteractions - a.avgInteractions)[0];
-  const bestPostingDay = bestDayObj && bestDayObj.avgInteractions > 0 ? bestDayObj.label : null;
-  const topMediaTypeKey = formatBuckets.sort((a, b) => b.value - a.value)[0]?.label ?? null;
-
   return (
-    <div className="grid grid-cols-[80px_minmax(0,1fr)_360px] gap-6">
+    <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-6">
       <Sidebar initials={userInitials || "DG"} avatarUrl={userAvatar} />
 
       <main className="flex min-w-0 flex-col gap-6 pb-10">
@@ -494,13 +488,6 @@ export default async function AccountDetailDarkPage({
         <MediaGridDark items={media} />
       </main>
 
-      <AiPanel
-        firstName={(user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "você").split(" ")[0]}
-        reach30d={latest?.reach ?? 0}
-        followersCount={latest?.followers_count ?? 0}
-        bestPostingDay={bestPostingDay}
-        topMediaType={topMediaTypeKey}
-      />
     </div>
   );
 }
