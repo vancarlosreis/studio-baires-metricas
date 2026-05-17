@@ -42,7 +42,18 @@ const mockAccounts: AccountMock[] = [
   },
 ];
 
-export default async function DashboardPage() {
+type SearchParams = Promise<{
+  connected?: string;
+}>;
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const justConnected = params.connected;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,6 +63,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
+      {justConnected && (
+        <div className="mb-8 rounded-2xl border border-forest/30 bg-forest/5 px-6 py-4">
+          <p className="text-sm font-semibold text-forest">
+            ✨ <strong className="font-bold">@{justConnected}</strong> conectada com sucesso!
+          </p>
+          <p className="mt-1 text-xs text-forest/80">
+            As métricas começarão a aparecer na próxima sincronização (em alguns minutos).
+          </p>
+        </div>
+      )}
+
       {/* Saudação */}
       <div className="mb-10">
         <p className="text-sm font-semibold uppercase tracking-wider text-ink-soft">
