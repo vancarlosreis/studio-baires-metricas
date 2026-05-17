@@ -44,6 +44,7 @@ export type Database = {
           accounts_engaged: number | null
           comments: number | null
           created_at: string
+          follower_count_delta: number | null
           followers_count: number | null
           follows_count: number | null
           id: string
@@ -51,19 +52,24 @@ export type Database = {
           impressions: number | null
           likes: number | null
           media_count: number | null
+          online_followers: Json | null
+          profile_links_taps: number | null
           profile_views: number | null
           raw_payload: Json | null
           reach: number | null
+          replies: number | null
           saves: number | null
           shares: number | null
           snapshot_date: string
           total_interactions: number | null
+          views: number | null
           website_clicks: number | null
         }
         Insert: {
           accounts_engaged?: number | null
           comments?: number | null
           created_at?: string
+          follower_count_delta?: number | null
           followers_count?: number | null
           follows_count?: number | null
           id?: string
@@ -71,19 +77,24 @@ export type Database = {
           impressions?: number | null
           likes?: number | null
           media_count?: number | null
+          online_followers?: Json | null
+          profile_links_taps?: number | null
           profile_views?: number | null
           raw_payload?: Json | null
           reach?: number | null
+          replies?: number | null
           saves?: number | null
           shares?: number | null
           snapshot_date: string
           total_interactions?: number | null
+          views?: number | null
           website_clicks?: number | null
         }
         Update: {
           accounts_engaged?: number | null
           comments?: number | null
           created_at?: string
+          follower_count_delta?: number | null
           followers_count?: number | null
           follows_count?: number | null
           id?: string
@@ -91,18 +102,63 @@ export type Database = {
           impressions?: number | null
           likes?: number | null
           media_count?: number | null
+          online_followers?: Json | null
+          profile_links_taps?: number | null
           profile_views?: number | null
           raw_payload?: Json | null
           reach?: number | null
+          replies?: number | null
           saves?: number | null
           shares?: number | null
           snapshot_date?: string
           total_interactions?: number | null
+          views?: number | null
           website_clicks?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "account_snapshots_ig_account_id_fkey"
+            columns: ["ig_account_id"]
+            isOneToOne: false
+            referencedRelation: "ig_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audience_demographics: {
+        Row: {
+          audience_type: Database["public"]["Enums"]["audience_type"]
+          breakdown: Database["public"]["Enums"]["demographic_breakdown"]
+          breakdown_values: Json
+          created_at: string
+          id: string
+          ig_account_id: string
+          raw_payload: Json | null
+          snapshot_date: string
+        }
+        Insert: {
+          audience_type: Database["public"]["Enums"]["audience_type"]
+          breakdown: Database["public"]["Enums"]["demographic_breakdown"]
+          breakdown_values?: Json
+          created_at?: string
+          id?: string
+          ig_account_id: string
+          raw_payload?: Json | null
+          snapshot_date: string
+        }
+        Update: {
+          audience_type?: Database["public"]["Enums"]["audience_type"]
+          breakdown?: Database["public"]["Enums"]["demographic_breakdown"]
+          breakdown_values?: Json
+          created_at?: string
+          id?: string
+          ig_account_id?: string
+          raw_payload?: Json | null
+          snapshot_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audience_demographics_ig_account_id_fkey"
             columns: ["ig_account_id"]
             isOneToOne: false
             referencedRelation: "ig_accounts"
@@ -359,6 +415,92 @@ export type Database = {
           },
         ]
       }
+      stories: {
+        Row: {
+          caption: string | null
+          created_at: string
+          exits: number | null
+          expires_at: string | null
+          id: string
+          ig_account_id: string
+          ig_media_id: string
+          media_type: string | null
+          media_url: string | null
+          navigation: number | null
+          permalink: string | null
+          posted_at: string
+          profile_activity: number | null
+          raw_payload: Json | null
+          reach: number | null
+          replies: number | null
+          shares: number | null
+          taps_back: number | null
+          taps_forward: number | null
+          thumbnail_url: string | null
+          total_interactions: number | null
+          updated_at: string
+          views: number | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          exits?: number | null
+          expires_at?: string | null
+          id?: string
+          ig_account_id: string
+          ig_media_id: string
+          media_type?: string | null
+          media_url?: string | null
+          navigation?: number | null
+          permalink?: string | null
+          posted_at: string
+          profile_activity?: number | null
+          raw_payload?: Json | null
+          reach?: number | null
+          replies?: number | null
+          shares?: number | null
+          taps_back?: number | null
+          taps_forward?: number | null
+          thumbnail_url?: string | null
+          total_interactions?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          exits?: number | null
+          expires_at?: string | null
+          id?: string
+          ig_account_id?: string
+          ig_media_id?: string
+          media_type?: string | null
+          media_url?: string | null
+          navigation?: number | null
+          permalink?: string | null
+          posted_at?: string
+          profile_activity?: number | null
+          raw_payload?: Json | null
+          reach?: number | null
+          replies?: number | null
+          shares?: number | null
+          taps_back?: number | null
+          taps_forward?: number | null
+          thumbnail_url?: string | null
+          total_interactions?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_ig_account_id_fkey"
+            columns: ["ig_account_id"]
+            isOneToOne: false
+            referencedRelation: "ig_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_jobs: {
         Row: {
           created_at: string
@@ -414,6 +556,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      audience_type: "follower" | "reached" | "engaged"
+      demographic_breakdown: "age" | "gender" | "city" | "country"
       ig_auth_method: "business_login" | "facebook_login"
       media_kind: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | "REELS" | "STORY"
       sync_kind:
@@ -553,6 +697,8 @@ export const Constants = {
   },
   public: {
     Enums: {
+      audience_type: ["follower", "reached", "engaged"],
+      demographic_breakdown: ["age", "gender", "city", "country"],
       ig_auth_method: ["business_login", "facebook_login"],
       media_kind: ["IMAGE", "VIDEO", "CAROUSEL_ALBUM", "REELS", "STORY"],
       sync_kind: [

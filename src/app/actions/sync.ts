@@ -10,7 +10,11 @@ import {
   getMediaList,
   getMediaInsightsResilient,
   findMetric,
+  getAudienceDemographicsResilient,
+  getOnlineFollowers,
   type MediaType,
+  type AudienceType,
+  type DemographicBreakdown,
 } from "@/lib/instagram/api";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -106,7 +110,15 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
       })
       .eq("id", account.id);
 
-    // 4. Salva snapshot do dia
+    // 4. Online followers (heatmap de horário — lifetime, não depende do período)
+    let onlineFollowers = null;
+    try {
+      onlineFollowers = await getOnlineFollowers(accessToken);
+    } catch (err) {
+      console.warn("[syncAccountProfile] online_followers falhou:", err);
+    }
+
+    // 5. Salva snapshot do dia
     const today = new Date().toISOString().slice(0, 10);
     const { error: snapErr } = await supabase
       .from("account_snapshots")
@@ -117,22 +129,28 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
           followers_count: profile.followers_count ?? null,
           follows_count: profile.follows_count ?? null,
           media_count: profile.media_count ?? null,
-          // Universais (funciona em BUSINESS + CREATOR)
+          // Universais v22 (BUSINESS + CREATOR)
           reach: findMetric(insights, "reach"),
+          views: findMetric(insights, "views"),
           accounts_engaged: findMetric(insights, "accounts_engaged"),
           total_interactions: findMetric(insights, "total_interactions"),
           likes: findMetric(insights, "likes"),
           comments: findMetric(insights, "comments"),
           shares: findMetric(insights, "shares"),
           saves: findMetric(insights, "saves"),
-          // Business-only (vai ser null pra contas CREATOR)
+          replies: findMetric(insights, "replies"),
+          profile_links_taps: findMetric(insights, "profile_links_taps"),
+          // Depreciadas (mantidas pra retro-compat se a API ainda devolver)
           profile_views: findMetric(insights, "profile_views"),
           website_clicks: findMetric(insights, "website_clicks"),
+          // Heatmap de online_followers
+          online_followers: onlineFollowers as unknown as never,
           raw_payload: {
             profile,
             insights,
             errors: insightErrors,
             period: { since, until, days: INSIGHTS_PERIOD_DAYS },
+            online_followers_present: !!onlineFollowers,
           } as unknown as never,
         },
         { onConflict: "ig_account_id,snapshot_date" },
@@ -140,13 +158,67 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
 
     if (snapErr) throw new Error(`Falha ao salvar snapshot: ${snapErr.message}`);
 
+    // 6. Demografia (3 tipos × 4 breakdowns = até 12 calls).
+    //    Tolerante a falhas — alguns breakdowns podem falhar se a conta tem <100 seguidores
+    //    ou se a Meta limitou alguma combinação.
+    const today_date = today;
+    const demographicTypes: AudienceType[] = [
+      "follower_demographics",
+      "reached_audience_demographics",
+      "engaged_audience_demographics",
+    ];
+    const breakdowns: DemographicBreakdown[] = ["age", "gender", "city", "country"];
+    const demographicWarnings: string[] = [];
+
+    for (const audienceType of demographicTypes) {
+      const { results, errors: demoErrors } =
+        await getAudienceDemographicsResilient(
+          accessToken,
+          audienceType,
+          breakdowns,
+        );
+      demographicWarnings.push(...demoErrors);
+
+      // Mapeia o nome do enum no banco: remove sufixo _audience_demographics / _demographics
+      const dbAudienceType =
+        audienceType === "follower_demographics"
+          ? "follower"
+          : audienceType === "reached_audience_demographics"
+            ? "reached"
+            : "engaged";
+
+      for (const result of results) {
+        await supabase
+          .from("audience_demographics")
+          .upsert(
+            {
+              ig_account_id: account.id,
+              snapshot_date: today_date,
+              audience_type: dbAudienceType as never,
+              breakdown: result.breakdown as never,
+              breakdown_values: result.values as unknown as never,
+              raw_payload: { results } as unknown as never,
+            },
+            { onConflict: "ig_account_id,snapshot_date,audience_type,breakdown" },
+          );
+      }
+    }
+    if (demographicWarnings.length > 0) {
+      console.warn("[syncAccountProfile] demographics warnings:", demographicWarnings);
+    }
+
+    const allWarnings = [...insightErrors, ...demographicWarnings];
     if (job) {
       await supabase
         .from("sync_jobs")
         .update({
           status: "success",
           finished_at: new Date().toISOString(),
-          metadata: { insight_errors: insightErrors } as unknown as never,
+          metadata: {
+            insight_errors: insightErrors,
+            demographic_warnings: demographicWarnings,
+            online_followers: !!onlineFollowers,
+          } as unknown as never,
         })
         .eq("id", job.id);
     }
@@ -156,7 +228,7 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
       ok: true,
       igAccountId: account.id,
       snapshot_date: today,
-      warnings: insightErrors,
+      warnings: allWarnings,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";

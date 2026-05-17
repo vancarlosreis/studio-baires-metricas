@@ -61,6 +61,7 @@ export async function getAccountProfile(
 
 export type InsightsMetric =
   | "reach"
+  | "views" // unificada v22+ (substitui impressions/plays)
   | "accounts_engaged"
   | "total_interactions"
   | "likes"
@@ -68,21 +69,151 @@ export type InsightsMetric =
   | "shares"
   | "saves"
   | "replies"
-  | "profile_views" // só BUSINESS
-  | "website_clicks"; // só BUSINESS
+  | "follower_count"
+  | "profile_links_taps" // substitui website_clicks/email_contacts (v22)
+  | "profile_views" // depreciada em time series (v21), mas em total_value às vezes funciona
+  | "website_clicks"; // depreciada v21
 
-/** Métricas disponíveis pra qualquer conta (BUSINESS + CREATOR) no nível conta. */
+/** Métricas universais (BUSINESS + CREATOR) — total_value no período. */
 export const UNIVERSAL_METRICS: InsightsMetric[] = [
   "reach",
+  "views", // substitui impressions/plays na v22
   "accounts_engaged",
   "total_interactions",
+  "likes",
+  "comments",
+  "shares",
+  "saves",
 ];
 
-/** Métricas adicionais disponíveis só pra contas BUSINESS. */
+/** Métricas que precisam de breakdown follower/non-follower — opcional. */
+export const FOLLOWER_BREAKDOWN_METRICS: InsightsMetric[] = ["reach"];
+
+/** Métricas só pra BUSINESS (em time series — limitadas em v21+). */
 export const BUSINESS_ONLY_METRICS: InsightsMetric[] = [
   "profile_views",
   "website_clicks",
 ];
+
+// ============================================================================
+// Demografia da audiência (3 tipos × 4 breakdowns)
+// Requer 100+ seguidores na conta.
+// ============================================================================
+export type AudienceType =
+  | "engaged_audience_demographics"
+  | "reached_audience_demographics"
+  | "follower_demographics";
+
+export type DemographicBreakdown = "age" | "gender" | "city" | "country";
+
+export type DemographicResult = {
+  breakdown: DemographicBreakdown;
+  values: Record<string, number>; // { "18-24": 234, "25-34": 412, ... }
+};
+
+/**
+ * Busca breakdown demográfico (audience × breakdown × valor).
+ * A API retorna `total_value.breakdowns[0].results[]` com pares `dimension_values` + `value`.
+ */
+export async function getAudienceDemographic(
+  accessToken: string,
+  metric: AudienceType,
+  breakdown: DemographicBreakdown,
+): Promise<DemographicResult | null> {
+  const params = new URLSearchParams({
+    metric,
+    period: "lifetime",
+    metric_type: "total_value",
+    breakdown,
+    timeframe: "this_week",
+    access_token: accessToken,
+  });
+
+  const res = await fetch(`${GRAPH_API_BASE}/me/insights?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `getAudienceDemographic(${metric}/${breakdown}) ${res.status}: ${text.slice(0, 200)}`,
+    );
+  }
+
+  const json = await res.json();
+  const data = json.data?.[0];
+  const breakdownsResult = data?.total_value?.breakdowns?.[0]?.results ?? [];
+
+  const values: Record<string, number> = {};
+  for (const row of breakdownsResult) {
+    const dimensionValues: string[] = row.dimension_values ?? [];
+    const key = dimensionValues.join(", ");
+    const value = typeof row.value === "number" ? row.value : 0;
+    if (key) values[key] = value;
+  }
+
+  return { breakdown, values };
+}
+
+/**
+ * Busca múltiplos breakdowns em paralelo, tolerante a falhas parciais.
+ */
+export async function getAudienceDemographicsResilient(
+  accessToken: string,
+  metric: AudienceType,
+  breakdowns: DemographicBreakdown[],
+): Promise<{
+  results: DemographicResult[];
+  errors: string[];
+}> {
+  const settled = await Promise.allSettled(
+    breakdowns.map((b) => getAudienceDemographic(accessToken, metric, b)),
+  );
+
+  const results: DemographicResult[] = [];
+  const errors: string[] = [];
+
+  settled.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value) {
+      results.push(r.value);
+    } else if (r.status === "rejected") {
+      errors.push(
+        `${metric}/${breakdowns[i]}: ${r.reason instanceof Error ? r.reason.message : "erro"}`,
+      );
+    }
+  });
+
+  return { results, errors };
+}
+
+// ============================================================================
+// Online followers — heatmap de quando os seguidores estão online
+// ============================================================================
+export type OnlineFollowers = Record<string, number>; // { "0": 142, "1": 89, ..., "23": 401 }
+
+/**
+ * Busca `online_followers` (lifetime). Retorna {hora: count} pra 24h.
+ * Útil pra widgets de "melhor horário pra postar".
+ */
+export async function getOnlineFollowers(
+  accessToken: string,
+): Promise<OnlineFollowers | null> {
+  const params = new URLSearchParams({
+    metric: "online_followers",
+    period: "lifetime",
+    access_token: accessToken,
+  });
+
+  const res = await fetch(`${GRAPH_API_BASE}/me/insights?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`getOnlineFollowers ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  const json = await res.json();
+  // A resposta vem como data[0].values[0].value = { "0": 142, "1": 89, ... }
+  const value = json.data?.[0]?.values?.[0]?.value;
+  if (!value || typeof value !== "object") return null;
+
+  return value as OnlineFollowers;
+}
 
 /**
  * Decide quais métricas pedir baseado no account_type.
