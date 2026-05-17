@@ -380,6 +380,7 @@ export async function syncAccountMedia(
         reach: findMetric(insights, "reach"),
         impressions: findMetric(insights, "impressions"),
         plays: findMetric(insights, "plays"),
+        views: findMetric(insights, "views"),
         total_interactions: findMetric(insights, "total_interactions"),
         follows: findMetric(insights, "follows"),
         profile_visits: findMetric(insights, "profile_visits"),

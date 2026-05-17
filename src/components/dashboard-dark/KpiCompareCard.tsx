@@ -25,9 +25,19 @@ type Props = {
   start?: Date;
   end?: Date;
   invertDelta?: boolean;
+  /** Quando false, esconde toda a área de comparação (pill, anterior). Default true. */
+  compare?: boolean;
 };
 
-export function KpiCompareCard({ label, value, previous, start, end, invertDelta = false }: Props) {
+export function KpiCompareCard({
+  label,
+  value,
+  previous,
+  start,
+  end,
+  invertDelta = false,
+  compare = true,
+}: Props) {
   const delta = value != null && previous != null ? value - previous : null;
   const pct =
     value != null && previous != null && previous !== 0
@@ -51,9 +61,11 @@ export function KpiCompareCard({ label, value, previous, start, end, invertDelta
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">
           {label}
         </p>
-        <span className="text-white/30" title="Comparação com período anterior">
-          <Info size={12} />
-        </span>
+        {compare && (
+          <span className="text-white/30" title="Comparação com período anterior">
+            <Info size={12} />
+          </span>
+        )}
       </div>
       {start && end && (
         <p className="mt-1 flex items-center gap-1 text-[10px] text-white/40">
@@ -63,17 +75,23 @@ export function KpiCompareCard({ label, value, previous, start, end, invertDelta
       <p className="mt-3 text-[28px] font-bold leading-tight tracking-tight text-white">
         {formatNumber(value)}
       </p>
-      <div className="mt-3 flex items-center gap-2">
-        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${pillClass}`}>
-          {Arrow && <Arrow size={11} />}
-          {pct == null ? formatDelta(delta) : formatPct(pct)}
-        </span>
-      </div>
-      <p className="mt-1 text-[11px] text-white/40">
-        {previous == null
-          ? "sem período anterior"
-          : `${formatNumber(previous)} no período anterior`}
-      </p>
+      {compare && (
+        <>
+          <div className="mt-3 flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${pillClass}`}
+            >
+              {Arrow && <Arrow size={11} />}
+              {pct == null ? formatDelta(delta) : formatPct(pct)}
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-white/40">
+            {previous == null
+              ? "sem período anterior"
+              : `${formatNumber(previous)} no período anterior`}
+          </p>
+        </>
+      )}
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function PeriodSelectorDark() {
       params.delete("de");
       params.delete("ate");
     }
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}`, { scroll: false });
     if (preset !== "custom") setOpen(false);
   }
 
@@ -58,7 +58,7 @@ export function PeriodSelectorDark() {
     params.set("periodo", "custom");
     params.set("de", customStart);
     params.set("ate", customEnd);
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}`, { scroll: false });
     setOpen(false);
   }
 
@@ -138,8 +138,54 @@ export function PeriodSelectorDark() {
               </button>
             </div>
           )}
+
+          {/* Toggle de comparação com período anterior */}
+          <CompareToggle />
         </div>
       )}
+    </div>
+  );
+}
+
+function CompareToggle() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const compareOff = searchParams.get("cmp") === "off";
+  const compareOn = !compareOff;
+
+  function toggle() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (compareOn) {
+      params.set("cmp", "off");
+    } else {
+      params.delete("cmp");
+    }
+    router.push(`?${params.toString()}`, { scroll: false });
+  }
+
+  return (
+    <div className="mt-4 flex items-start justify-between gap-3 rounded-2xl border border-white/[0.06] bg-surface-2/40 p-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-white">Comparar com período anterior</p>
+        <p className="mt-0.5 text-[11px] text-white/50">
+          Mostra deltas (+/-%) e valor do período anterior em cada KPI.
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={compareOn}
+        onClick={toggle}
+        className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          compareOn ? "bg-neon-purple" : "bg-white/15"
+        }`}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+            compareOn ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </button>
     </div>
   );
 }

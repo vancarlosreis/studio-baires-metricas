@@ -75,6 +75,7 @@ type SearchParams = Promise<{
   vis?: string; // "cards" (default) | "lista"
   sort?: string; // chave de ordenação da tabela
   ord?: string; // "asc" | "desc"
+  cmp?: string; // "off" desabilita comparação com período anterior
 }>;
 
 export default async function AccountDetailDarkPage({
@@ -122,6 +123,7 @@ export default async function AccountDetailDarkPage({
     ? (sParams.sort as MediaSortKey)
     : "reach";
   const sortOrd: MediaSortOrd = sParams.ord === "asc" ? "asc" : "desc";
+  const compare = sParams.cmp !== "off";
 
   const {
     data: { user },
@@ -399,11 +401,13 @@ export default async function AccountDetailDarkPage({
         <SectionTitle eyebrow="Posts" title="Performance do feed." />
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCompareCard
+              compare={compare}
             label="Posts publicados"
             value={feedAggCurrent.count}
             previous={feedAggPrev.count}
           />
           <KpiCompareCard
+              compare={compare}
             label="Alcance dos posts"
             value={feedAggCurrent.reach}
             previous={feedAggPrev.reach}
@@ -411,11 +415,13 @@ export default async function AccountDetailDarkPage({
             end={period.end}
           />
           <KpiCompareCard
+              compare={compare}
             label="Interações"
             value={feedAggCurrent.total_interactions}
             previous={feedAggPrev.total_interactions}
           />
           <KpiCompareCard
+              compare={compare}
             label="Curtidas"
             value={feedAggCurrent.likes}
             previous={feedAggPrev.likes}
@@ -423,21 +429,25 @@ export default async function AccountDetailDarkPage({
         </section>
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCompareCard
+              compare={compare}
             label="Comentários"
             value={feedAggCurrent.comments}
             previous={feedAggPrev.comments}
           />
           <KpiCompareCard
+              compare={compare}
             label="Salvamentos"
             value={feedAggCurrent.saves}
             previous={feedAggPrev.saves}
           />
           <KpiCompareCard
+              compare={compare}
             label="Compartilhamentos"
             value={feedAggCurrent.shares}
             previous={feedAggPrev.shares}
           />
           <KpiCompareCard
+              compare={compare}
             label="Visualizações do feed"
             value={feedAggCurrent.views}
             previous={feedAggPrev.views}
@@ -448,11 +458,13 @@ export default async function AccountDetailDarkPage({
         <SectionTitle eyebrow="Reels" title="Performance dos reels." />
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCompareCard
+              compare={compare}
             label="Reels publicados"
             value={reelsAggCurrent.count}
             previous={reelsAggPrev.count}
           />
           <KpiCompareCard
+              compare={compare}
             label="Alcance dos reels"
             value={reelsAggCurrent.reach}
             previous={reelsAggPrev.reach}
@@ -460,11 +472,13 @@ export default async function AccountDetailDarkPage({
             end={period.end}
           />
           <KpiCompareCard
+              compare={compare}
             label="Interações nos reels"
             value={reelsAggCurrent.total_interactions}
             previous={reelsAggPrev.total_interactions}
           />
           <KpiCompareCard
+              compare={compare}
             label="Visualizações dos reels"
             value={reelsAggCurrent.views}
             previous={reelsAggPrev.views}
@@ -590,6 +604,7 @@ function ViewToggle({
     <div className="inline-flex items-center gap-1 rounded-full border border-white/[0.06] bg-surface/60 p-1">
       <Link
         href={hrefFor("cards")}
+        scroll={false}
         className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
           vis === "cards"
             ? "bg-surface-2 text-white dark-glow-purple"
@@ -607,6 +622,7 @@ function ViewToggle({
       </Link>
       <Link
         href={hrefFor("lista")}
+        scroll={false}
         className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
           vis === "lista"
             ? "bg-surface-2 text-white dark-glow-purple"
@@ -639,6 +655,7 @@ function TabLink({
   return (
     <Link
       href={href}
+      scroll={false}
       className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition ${
         active
           ? "dark-bg-grad-purple-pink text-white dark-glow-purple"
