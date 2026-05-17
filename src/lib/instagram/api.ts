@@ -69,13 +69,17 @@ export async function getAccountProfile(
   ctx?: GraphContext,
 ): Promise<AccountProfileResponse> {
   const { apiBase, accountPath } = resolveCtx(ctx);
-  // `user_id` é alias do Business Login. Em graph.facebook.com pedimos `id`.
   const isFb = apiBase.includes("graph.facebook.com");
+
+  // Campos diferentes por endpoint:
+  // - graph.instagram.com (Business Login): tem `user_id` (alias) e `account_type`
+  // - graph.facebook.com (Meta Switch): tem só `id`, sem `account_type`
+  //   (contas acessíveis via Graph FB são sempre Business/Creator por definição)
   const fields = [
     isFb ? "id" : "user_id",
     "username",
     "name",
-    "account_type",
+    ...(isFb ? [] : ["account_type"]),
     "profile_picture_url",
     "media_count",
     "followers_count",
@@ -93,7 +97,10 @@ export async function getAccountProfile(
     user_id: String(json.user_id ?? json.id),
     username: json.username,
     name: json.name,
-    account_type: json.account_type,
+    // Em graph.facebook.com a conta é sempre Business/Creator pra estar visível
+    // (Personal não aparece via Graph). Assumir BUSINESS é seguro pra desbloquear
+    // as métricas business-only no resilient.
+    account_type: json.account_type ?? (isFb ? "BUSINESS" : undefined),
     profile_picture_url: json.profile_picture_url,
     media_count: json.media_count,
     followers_count: json.followers_count,
