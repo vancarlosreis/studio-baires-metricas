@@ -12,6 +12,7 @@ import {
   findMetric,
   getAudienceDemographicsResilient,
   getOnlineFollowers,
+  contextForAccount,
   type MediaType,
   type AudienceType,
   type DemographicBreakdown,
@@ -85,9 +86,10 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
 
   try {
     const accessToken = decryptAccountToken(account.access_token_encrypted);
+    const graphCtx = contextForAccount(account);
 
     // 1. Perfil
-    const profile = await getAccountProfile(accessToken);
+    const profile = await getAccountProfile(accessToken, graphCtx);
 
     // 2. Insights — adapta por account_type, tolerante a falhas parciais
     const until = Math.floor(Date.now() / 1000);
@@ -96,6 +98,7 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
       accessToken,
       profile.account_type,
       { since, until },
+      graphCtx,
     );
 
     // 3. Atualiza ig_accounts (metadata + account_type)
@@ -113,7 +116,7 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
     // 4. Online followers (heatmap de horário — lifetime, não depende do período)
     let onlineFollowers = null;
     try {
-      onlineFollowers = await getOnlineFollowers(accessToken);
+      onlineFollowers = await getOnlineFollowers(accessToken, graphCtx);
     } catch (err) {
       console.warn("[syncAccountProfile] online_followers falhou:", err);
     }
@@ -176,6 +179,7 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
           accessToken,
           audienceType,
           breakdowns,
+          graphCtx,
         );
       demographicWarnings.push(...demoErrors);
 
@@ -298,9 +302,10 @@ export async function syncAccountMedia(
 
   try {
     const accessToken = decryptAccountToken(account.access_token_encrypted);
+    const graphCtx = contextForAccount(account);
 
     // 1. Lista mídias
-    const { data: mediaItems } = await getMediaList(accessToken, { maxItems });
+    const { data: mediaItems } = await getMediaList(accessToken, { maxItems }, graphCtx);
 
     if (mediaItems.length === 0) {
       if (job) {
@@ -357,6 +362,7 @@ export async function syncAccountMedia(
         accessToken,
         item.id,
         item.media_product_type,
+        graphCtx,
       );
 
       if (insightErrors.length > 0) {
