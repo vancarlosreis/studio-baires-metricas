@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Users, Eye, Activity, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   getIgAccountByHandle,
@@ -234,7 +234,7 @@ export default async function AccountDetailDarkPage({
             label="Seguidores"
             value={fmtCompact(latest?.followers_count)}
             trend={trend(latest?.followers_count, prev?.followers_count)}
-            icon={Users}
+            icon="users"
             accent="purple"
             sparkline={followersSpark}
           />
@@ -242,7 +242,7 @@ export default async function AccountDetailDarkPage({
             label="Alcance"
             value={fmtCompact(latest?.reach)}
             trend={trend(latest?.reach, prev?.reach)}
-            icon={Eye}
+            icon="eye"
             accent="blue"
             sparkline={reachSpark}
           />
@@ -250,7 +250,7 @@ export default async function AccountDetailDarkPage({
             label="Interações"
             value={fmtCompact(latest?.total_interactions)}
             trend={trend(latest?.total_interactions, prev?.total_interactions)}
-            icon={Activity}
+            icon="activity"
             accent="pink"
             sparkline={interactionsSpark}
           />
@@ -258,7 +258,7 @@ export default async function AccountDetailDarkPage({
             label="Visualizações"
             value={fmtCompact(latest?.views)}
             trend={trend(latest?.views, prev?.views)}
-            icon={TrendingUp}
+            icon="trending-up"
             accent="cyan"
             sparkline={viewsSpark}
           />
@@ -522,7 +522,7 @@ function TabLink({
       className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition ${
         active
           ? "dark-bg-grad-purple-pink text-white dark-glow-purple"
-          : "border border-white/[0.06] bg-[var(--color-surface)]/60 text-white/70 hover:text-white"
+          : "border border-white/[0.06] bg-surface/60 text-white/70 hover:text-white"
       }`}
     >
       {label}

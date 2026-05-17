@@ -32,7 +32,7 @@ type Props = {
 
 export function Sidebar({ initials, avatarUrl }: Props) {
   return (
-    <aside className="sticky top-6 flex h-[calc(100vh-3rem)] w-[80px] flex-col items-center justify-between rounded-2xl border border-white/[0.06] bg-[var(--color-surface)]/60 px-2 py-5 backdrop-blur">
+    <aside className="sticky top-6 flex h-[calc(100vh-3rem)] w-[80px] flex-col items-center justify-between rounded-2xl border border-white/[0.06] bg-surface/60 px-2 py-5 backdrop-blur">
       <div className="flex flex-col items-center gap-6">
         <Link
           href="/dashboard"
@@ -54,7 +54,7 @@ export function Sidebar({ initials, avatarUrl }: Props) {
           {items.map(({ icon: Icon, label, active, href }) => {
             const className = `group relative grid h-11 w-11 place-items-center rounded-xl transition ${
               active
-                ? "bg-[var(--color-surface-2)] text-white dark-glow-purple"
+                ? "bg-surface-2 text-white dark-glow-purple"
                 : "text-white/70 hover:bg-white/5 hover:text-white"
             }`;
             const inner = (
@@ -89,7 +89,7 @@ export function Sidebar({ initials, avatarUrl }: Props) {
             <Icon size={18} strokeWidth={1.8} />
           </button>
         ))}
-        <div className="mt-2 h-9 w-9 overflow-hidden rounded-full ring-2 ring-[var(--color-neon-purple)]/60">
+        <div className="mt-2 h-9 w-9 overflow-hidden rounded-full ring-2 ring-neon-purple/60">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt={initials} className="h-full w-full object-cover" />

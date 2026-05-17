@@ -63,7 +63,7 @@ export function AiPanel({ firstName, reach30d, followersCount, bestPostingDay, t
   return (
     <aside className="sticky top-6 flex h-[calc(100vh-3rem)] w-[360px] flex-col gap-4">
       <div className="dark-card relative overflow-hidden p-5">
-        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[var(--color-neon-purple)]/30 blur-3xl" />
+        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-neon-purple/30 blur-3xl" />
         <div className="relative flex items-center gap-2">
           <div className="dark-bg-grad-purple-pink dark-glow-purple grid h-9 w-9 place-items-center rounded-xl">
             <Sparkles size={16} className="text-white" />
@@ -84,7 +84,7 @@ export function AiPanel({ firstName, reach30d, followersCount, bestPostingDay, t
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
             Sugestões inteligentes
           </p>
-          <span className="rounded-full bg-[var(--color-warning-neon)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--color-warning-neon)]">
+          <span className="rounded-full bg-warning-neon/15 px-2 py-0.5 text-[10px] font-medium text-warning-neon">
             Heurística
           </span>
         </div>
@@ -95,11 +95,11 @@ export function AiPanel({ firstName, reach30d, followersCount, bestPostingDay, t
             return (
               <div
                 key={s.title}
-                className="dark-card-hover rounded-2xl border border-white/[0.06] bg-[var(--color-surface-2)]/60 p-3"
+                className="dark-card-hover rounded-2xl border border-white/[0.06] bg-surface-2/60 p-3"
               >
                 <div className="flex items-center gap-2">
                   <div className="grid h-7 w-7 place-items-center rounded-lg bg-white/5">
-                    <Icon size={13} className="text-[var(--color-neon-pink)]" />
+                    <Icon size={13} className="text-neon-pink" />
                   </div>
                   <span className="text-xs text-white/50">{s.tag}</span>
                 </div>
@@ -112,7 +112,7 @@ export function AiPanel({ firstName, reach30d, followersCount, bestPostingDay, t
 
         <form
           onSubmit={(e) => e.preventDefault()}
-          className="mt-4 flex items-center gap-2 rounded-2xl border border-white/[0.10] bg-[var(--color-bg-elevated)] px-3 py-2"
+          className="mt-4 flex items-center gap-2 rounded-2xl border border-white/[0.10] bg-bg-elevated px-3 py-2"
         >
           <input
             placeholder="Pergunte algo sobre suas métricas…"

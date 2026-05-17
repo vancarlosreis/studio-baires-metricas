@@ -1,26 +1,46 @@
 "use client";
 
-import { ArrowUpRight, ArrowDownRight, type LucideIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  Users,
+  Eye,
+  Activity,
+  TrendingUp,
+  Heart,
+  type LucideIcon,
+} from "lucide-react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
+
+export type KpiIconName = "users" | "eye" | "activity" | "trending-up" | "heart";
+
+const ICONS: Record<KpiIconName, LucideIcon> = {
+  users: Users,
+  eye: Eye,
+  activity: Activity,
+  "trending-up": TrendingUp,
+  heart: Heart,
+};
 
 type Props = {
   label: string;
   value: string;
   trend?: { delta: number; direction: "up" | "down" } | null;
-  icon: LucideIcon;
+  icon: KpiIconName;
   accent: "purple" | "pink" | "blue" | "cyan";
   sparkline?: number[] | null;
   hint?: string;
 };
 
 const accentMap = {
-  purple: { ring: "ring-[var(--color-neon-purple)]/40", glow: "from-[var(--color-neon-purple)]/30", stroke: "#8B5CF6" },
-  pink: { ring: "ring-[var(--color-neon-pink)]/40", glow: "from-[var(--color-neon-pink)]/30", stroke: "#EC4899" },
-  blue: { ring: "ring-[var(--color-neon-blue)]/40", glow: "from-[var(--color-neon-blue)]/30", stroke: "#3B82F6" },
-  cyan: { ring: "ring-[var(--color-neon-cyan)]/40", glow: "from-[var(--color-neon-cyan)]/30", stroke: "#22D3EE" },
+  purple: { ring: "ring-neon-purple/40", glow: "from-neon-purple/30", stroke: "#8B5CF6" },
+  pink: { ring: "ring-neon-pink/40", glow: "from-neon-pink/30", stroke: "#EC4899" },
+  blue: { ring: "ring-neon-blue/40", glow: "from-neon-blue/30", stroke: "#3B82F6" },
+  cyan: { ring: "ring-neon-cyan/40", glow: "from-neon-cyan/30", stroke: "#22D3EE" },
 };
 
-export function KpiCard({ label, value, trend, icon: Icon, accent, sparkline, hint }: Props) {
+export function KpiCard({ label, value, trend, icon, accent, sparkline, hint }: Props) {
+  const Icon = ICONS[icon];
   const a = accentMap[accent];
   const data = (sparkline ?? []).map((v, i) => ({ i, v }));
   const isUp = trend?.direction === "up";
@@ -31,15 +51,15 @@ export function KpiCard({ label, value, trend, icon: Icon, accent, sparkline, hi
         className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br to-transparent blur-2xl ${a.glow}`}
       />
       <div className="relative flex items-start justify-between">
-        <div className={`grid h-10 w-10 place-items-center rounded-xl bg-[var(--color-surface-2)] ring-1 ${a.ring}`}>
+        <div className={`grid h-10 w-10 place-items-center rounded-xl bg-surface-2 ring-1 ${a.ring}`}>
           <Icon size={18} className="text-white" strokeWidth={1.8} />
         </div>
         {trend ? (
           <span
             className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
               isUp
-                ? "bg-[var(--color-success-neon)]/15 text-[var(--color-success-neon)]"
-                : "bg-[var(--color-danger-neon)]/15 text-[var(--color-danger-neon)]"
+                ? "bg-success-neon/15 text-success-neon"
+                : "bg-danger-neon/15 text-danger-neon"
             }`}
           >
             {isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}

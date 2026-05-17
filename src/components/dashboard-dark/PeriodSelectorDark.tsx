@@ -67,7 +67,7 @@ export function PeriodSelectorDark() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-10 items-center gap-2 rounded-full border border-white/[0.06] bg-[var(--color-surface)]/60 px-4 text-sm font-medium text-white/80 transition hover:text-white"
+        className="inline-flex h-10 items-center gap-2 rounded-full border border-white/[0.06] bg-surface/60 px-4 text-sm font-medium text-white/80 transition hover:text-white"
       >
         <Calendar size={14} />
         <span>{period.label}</span>
@@ -94,7 +94,7 @@ export function PeriodSelectorDark() {
                 onClick={() => selectPreset(p.value)}
                 className={`rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
                   currentPreset === p.value
-                    ? "bg-[var(--color-surface-2)] text-white dark-glow-purple"
+                    ? "bg-surface-2 text-white dark-glow-purple"
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 }`}
               >
@@ -114,7 +114,7 @@ export function PeriodSelectorDark() {
                     type="date"
                     value={customStart}
                     onChange={(e) => setCustomStart(e.target.value)}
-                    className="mt-1 w-full rounded-full border border-white/[0.10] bg-[var(--color-bg-elevated)] px-3 py-1.5 text-sm text-white outline-none focus:border-[var(--color-neon-purple)]/60"
+                    className="mt-1 w-full rounded-full border border-white/[0.10] bg-bg-elevated px-3 py-1.5 text-sm text-white outline-none focus:border-neon-purple/60"
                   />
                 </label>
                 <label className="block">
@@ -125,7 +125,7 @@ export function PeriodSelectorDark() {
                     type="date"
                     value={customEnd}
                     onChange={(e) => setCustomEnd(e.target.value)}
-                    className="mt-1 w-full rounded-full border border-white/[0.10] bg-[var(--color-bg-elevated)] px-3 py-1.5 text-sm text-white outline-none focus:border-[var(--color-neon-purple)]/60"
+                    className="mt-1 w-full rounded-full border border-white/[0.10] bg-bg-elevated px-3 py-1.5 text-sm text-white outline-none focus:border-neon-purple/60"
                   />
                 </label>
               </div>

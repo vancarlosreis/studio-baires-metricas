@@ -45,7 +45,7 @@ export function SyncButtonDark({
         {pending ? "Sincronizando…" : label}
       </button>
       {error && (
-        <span className="max-w-[260px] truncate text-[10px] text-[var(--color-danger-neon)]">
+        <span className="max-w-[260px] truncate text-[10px] text-danger-neon">
           {error}
         </span>
       )}

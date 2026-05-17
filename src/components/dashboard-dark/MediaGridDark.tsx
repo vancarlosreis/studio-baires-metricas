@@ -51,7 +51,7 @@ export function MediaGridDark({ items }: { items: MediaWithLatestInsight[] }) {
             rel="noreferrer"
             className="dark-card dark-card-hover group flex gap-3 p-3"
           >
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[var(--color-surface-2)] ring-1 ring-white/[0.06]">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-2 ring-1 ring-white/[0.06]">
               {thumb ? (
                 <Image
                   src={thumb}
@@ -69,7 +69,7 @@ export function MediaGridDark({ items }: { items: MediaWithLatestInsight[] }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-[var(--color-neon-pink)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-neon-pink)]">
+                <span className="rounded-full bg-neon-pink/15 px-2 py-0.5 text-[10px] font-semibold text-neon-pink">
                   {typeLabel(m.media_product_type, m.kind)}
                 </span>
                 <span className="text-[10px] text-white/40">
@@ -84,7 +84,7 @@ export function MediaGridDark({ items }: { items: MediaWithLatestInsight[] }) {
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/60">
                 <span className="flex items-center gap-1">
-                  <Eye size={11} className="text-[var(--color-neon-blue)]" /> {fmt(i?.reach)}
+                  <Eye size={11} className="text-neon-blue" /> {fmt(i?.reach)}
                 </span>
                 <span className="flex items-center gap-1">
                   <Heart size={11} /> {fmt(i?.likes)}

@@ -34,7 +34,7 @@ export function Topbar({
 
       <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <div className="flex items-center gap-4">
-          <div className="relative h-14 w-14 overflow-hidden rounded-full ring-2 ring-[var(--color-neon-purple)]/50">
+          <div className="relative h-14 w-14 overflow-hidden rounded-full ring-2 ring-neon-purple/50">
             {profilePictureUrl ? (
               <Image
                 src={profilePictureUrl}
@@ -68,14 +68,14 @@ export function Topbar({
           <PeriodSelectorDark />
           <button
             type="button"
-            className="grid h-10 w-10 place-items-center rounded-full border border-white/[0.06] bg-[var(--color-surface)]/60 text-white/70 transition hover:text-white"
+            className="grid h-10 w-10 place-items-center rounded-full border border-white/[0.06] bg-surface/60 text-white/70 transition hover:text-white"
             aria-label="Notificações"
           >
             <Bell size={16} />
           </button>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-[var(--color-surface)]/60 px-4 py-2 text-sm font-medium text-white/70 transition hover:text-white"
+            className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-surface/60 px-4 py-2 text-sm font-medium text-white/70 transition hover:text-white"
           >
             <Share2 size={14} /> Compartilhar
           </button>

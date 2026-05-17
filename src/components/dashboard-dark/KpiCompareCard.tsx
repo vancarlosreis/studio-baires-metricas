@@ -40,8 +40,8 @@ export function KpiCompareCard({ label, value, previous, start, end, invertDelta
     delta == null
       ? "bg-white/5 text-white/50"
       : isGood
-        ? "bg-[var(--color-success-neon)]/15 text-[var(--color-success-neon)]"
-        : "bg-[var(--color-danger-neon)]/15 text-[var(--color-danger-neon)]";
+        ? "bg-success-neon/15 text-success-neon"
+        : "bg-danger-neon/15 text-danger-neon";
 
   const Arrow = delta == null ? null : isPositive ? ArrowUpRight : ArrowDownRight;
 
