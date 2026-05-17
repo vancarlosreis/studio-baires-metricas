@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -44,6 +44,13 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+// Inter — usada apenas no dark scope (/dashboard/contas/[handle])
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Studio Baires — Métricas que parecem revista",
   description:
@@ -58,7 +65,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${ivyPresto.variable} ${jakarta.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${ivyPresto.variable} ${jakarta.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-cream text-ink font-sans">
         {children}
