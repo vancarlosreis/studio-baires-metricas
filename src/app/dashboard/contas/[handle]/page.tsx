@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { Users, Eye, Activity, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   getIgAccountByHandle,
@@ -22,29 +22,25 @@ import {
   getSnapshotNearDate,
 } from "@/lib/queries/aggregates";
 import { resolvePeriod, previousPeriod } from "@/lib/period";
-import { EvolutionChart, type EvolutionDataPoint } from "@/components/evolution-chart";
-import { MediaDisplay } from "@/components/media-display";
-import { SyncButton } from "@/components/sync-button";
-import { PeriodSelector } from "@/components/period-selector";
-import {
-  DonutChart,
-  DonutLegend,
-  type DonutSlice,
-} from "@/components/charts/donut-chart";
-import { AgeBarChart } from "@/components/charts/age-gender-chart";
-import { HourlyBarChart } from "@/components/charts/hourly-chart";
-import { DayOfWeekChart } from "@/components/charts/day-of-week-chart";
-import { DemographicsTable } from "@/components/tables/demographics-table";
-import {
-  KpiCard,
-  KpiComparisonCard,
-  KpiNoHistoryCard,
-  KpiWithDateRange,
-} from "@/components/kpi/kpi-cards";
+import { Sidebar } from "@/components/dashboard-dark/Sidebar";
+import { Topbar } from "@/components/dashboard-dark/Topbar";
+import { AiPanel } from "@/components/dashboard-dark/AiPanel";
+import { KpiCard } from "@/components/dashboard-dark/KpiCard";
+import { KpiCompareCard, KpiEmptyCard } from "@/components/dashboard-dark/KpiCompareCard";
+import { ChartShell, SectionTitle } from "@/components/dashboard-dark/ChartShell";
+import { EvolutionChartDark } from "@/components/dashboard-dark/charts/EvolutionChartDark";
+import { DonutChartDark, DonutLegendDark, type DonutSlice } from "@/components/dashboard-dark/charts/DonutChartDark";
+import { BarChartDark, type BarPoint } from "@/components/dashboard-dark/charts/BarChartDark";
+import { HourlyHeatmapDark } from "@/components/dashboard-dark/charts/HourlyHeatmapDark";
+import { MediaGridDark } from "@/components/dashboard-dark/MediaGridDark";
+import { DemographicsTableDark } from "@/components/dashboard-dark/DemographicsTableDark";
 
-const PRODUCT_TYPE_FROM_TAB: Record<string, string | undefined> = {
-  posts: "FEED",
-  reels: "REELS",
+const NEON = {
+  purple: "#8B5CF6",
+  pink: "#EC4899",
+  blue: "#3B82F6",
+  cyan: "#22D3EE",
+  amber: "#F59E0B",
 };
 
 function timeAgo(iso: string | null): string {
@@ -59,11 +55,12 @@ function timeAgo(iso: string | null): string {
   return `${d}d atrás`;
 }
 
-const COLORS = {
-  forest: "#2F4A35",
-  burgundy: "#8B2C2C",
-  ink: "#2A1F18",
-};
+function fmtCompact(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+  return n.toLocaleString("pt-BR");
+}
 
 type Params = Promise<{ handle: string }>;
 type SearchParams = Promise<{
@@ -71,12 +68,9 @@ type SearchParams = Promise<{
   periodo?: string;
   de?: string;
   ate?: string;
-  vis?: string;
-  sort?: string;
-  ord?: string;
 }>;
 
-export default async function AccountDetailPage({
+export default async function AccountDetailDarkPage({
   params,
   searchParams,
 }: {
@@ -90,12 +84,20 @@ export default async function AccountDetailPage({
   const account = await getIgAccountByHandle(supabase, handle);
   if (!account) notFound();
 
+  const PRODUCT_TYPE_FROM_TAB: Record<string, string | undefined> = {
+    posts: "FEED",
+    reels: "REELS",
+  };
+
   const activeTab = sParams.aba ?? "tudo";
   const productType = PRODUCT_TYPE_FROM_TAB[activeTab];
   const period = resolvePeriod(sParams.periodo, sParams.de, sParams.ate);
   const previous = previousPeriod(period);
 
-  // Busca paralela de tudo que precisamos
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const [
     snapshots,
     allMedia,
@@ -120,65 +122,75 @@ export default async function AccountDetailPage({
     getSnapshotNearDate(supabase, account.id, previous.end),
   ]);
 
-  // Filtra mídias do período pra grid/tabela
   const media = allMedia.filter((m) => {
     const t = new Date(m.posted_at).getTime();
     return t >= period.start.getTime() && t <= period.end.getTime();
   });
 
-  // Snapshot mais recente (atual) e mais antigo do período
   const inPeriodSnapshots = snapshots.filter((s) => {
     const t = new Date(s.snapshot_date + "T12:00:00").getTime();
     return t >= period.start.getTime() && t <= period.end.getTime();
   });
   const latest = inPeriodSnapshots[inPeriodSnapshots.length - 1] ?? snapshots[snapshots.length - 1];
-
-  // Snapshot anterior pra comparação de valores de período (reach, views, etc)
   const prev = snapshotBeforePeriod;
 
   // Demographics
   const genderFollower = demographics.follower?.gender;
   const genderDonut: DonutSlice[] = genderFollower
     ? [
-        {
-          label: genderLabel("F"),
-          value: genderFollower["F"] ?? 0,
-          color: COLORS.burgundy,
-        },
-        {
-          label: genderLabel("M"),
-          value: genderFollower["M"] ?? 0,
-          color: COLORS.forest,
-        },
-        {
-          label: genderLabel("U"),
-          value: genderFollower["U"] ?? 0,
-          color: "#A8B3A2",
-        },
+        { label: genderLabel("F"), value: genderFollower["F"] ?? 0, color: NEON.pink },
+        { label: genderLabel("M"), value: genderFollower["M"] ?? 0, color: NEON.purple },
+        { label: genderLabel("U"), value: genderFollower["U"] ?? 0, color: "#6B7280" },
       ].filter((s) => s.value > 0)
     : [];
-  const followerAge = sortAgeBuckets(demographics.follower?.age).map((b) => ({
-    age: b.key,
+
+  const ageBars: BarPoint[] = sortAgeBuckets(demographics.follower?.age).map((b) => ({
+    label: b.key,
     value: b.value,
   }));
-  const reachedAge = sortAgeBuckets(demographics.reached?.age).map((b) => ({
-    age: b.key,
-    value: b.value,
+
+  const dayOfWeekBars: BarPoint[] = dayOfWeekStats.map((d) => ({
+    label: d.label,
+    value: d.avgInteractions,
   }));
+
   const topCitiesFollower = topEntries(demographics.follower?.city, 10);
   const topCountriesFollower = topEntries(demographics.follower?.country, 6);
+  const topCitiesReached = topEntries(demographics.reached?.city, 10);
 
-  // Online followers (heatmap)
-  const onlineFollowers = latest?.online_followers as
-    | Record<string, number>
-    | null;
+  const onlineFollowers = latest?.online_followers as Record<string, number> | null;
 
-  // Evolução chart
+  // Reach evolution
   const chartSnapshots = inPeriodSnapshots.length > 0 ? inPeriodSnapshots : snapshots;
-  const reachData: EvolutionDataPoint[] = chartSnapshots.map((s) => ({
+  const reachData = chartSnapshots.map((s) => ({
     date: s.snapshot_date,
     value: s.reach,
   }));
+
+  // Followers evolution (cumulative if column exists)
+  const followersData = chartSnapshots.map((s) => ({
+    date: s.snapshot_date,
+    value: s.followers_count,
+  }));
+
+  // Format distribution from media counts
+  const formatBuckets: DonutSlice[] = [
+    mediaCounts.FEED ? { label: "Feed", value: mediaCounts.FEED, color: NEON.blue } : null,
+    mediaCounts.REELS ? { label: "Reels", value: mediaCounts.REELS, color: NEON.pink } : null,
+    mediaCounts.STORY ? { label: "Stories", value: mediaCounts.STORY, color: NEON.amber } : null,
+  ].filter((x): x is DonutSlice => x !== null);
+
+  // KPIs principais com sparkline a partir dos snapshots
+  const reachSpark = chartSnapshots.slice(-12).map((s) => s.reach ?? 0);
+  const followersSpark = chartSnapshots.slice(-12).map((s) => s.followers_count ?? 0);
+  const interactionsSpark = chartSnapshots.slice(-12).map((s) => s.total_interactions ?? 0);
+  const viewsSpark = chartSnapshots.slice(-12).map((s) => s.views ?? 0);
+
+  function trend(curr?: number | null, p?: number | null): { delta: number; direction: "up" | "down" } | null {
+    if (curr == null || p == null || p === 0) return null;
+    const delta = ((curr - p) / p) * 100;
+    return { delta, direction: delta >= 0 ? "up" : "down" };
+  }
 
   const initials = getAccountInitials(account);
   const displayName = account.ig_account_name || account.ig_username;
@@ -189,422 +201,306 @@ export default async function AccountDetailPage({
         ? "Criador"
         : "Conta";
 
+  const userInitials = (user?.user_metadata?.full_name ?? user?.email ?? "U")
+    .split(/[\s.@]+/)
+    .slice(0, 2)
+    .map((p: string) => p[0]?.toUpperCase() ?? "")
+    .join("");
+  const userAvatar = (user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null) as string | null;
+
+  // Best posting day (max avgInteractions)
+  const bestDayObj = [...dayOfWeekStats].sort((a, b) => b.avgInteractions - a.avgInteractions)[0];
+  const bestPostingDay = bestDayObj && bestDayObj.avgInteractions > 0 ? bestDayObj.label : null;
+  const topMediaTypeKey = formatBuckets.sort((a, b) => b.value - a.value)[0]?.label ?? null;
+
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
-      {/* Voltar */}
-      <Link
-        href="/dashboard"
-        className="text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline"
-      >
-        ← Voltar
-      </Link>
+    <div className="grid grid-cols-[80px_minmax(0,1fr)_360px] gap-6">
+      <Sidebar initials={userInitials || "DG"} avatarUrl={userAvatar} />
 
-      {/* Header */}
-      <header className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-5">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink text-cream">
-            {account.ig_profile_picture_url ? (
-              <Image
-                src={account.ig_profile_picture_url}
-                alt={displayName}
-                width={80}
-                height={80}
-                className="h-full w-full object-cover"
-                unoptimized
-              />
-            ) : (
-              <span className="text-xl font-semibold">{initials}</span>
-            )}
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
-              {accountTypeLabel}
-            </p>
-            <h1 className="headline-display mt-1 text-4xl text-ink sm:text-5xl">
-              {displayName}
-            </h1>
-            <p className="text-base text-ink-soft">@{account.ig_username}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex items-center gap-3">
-            <PeriodSelector />
-            <SyncButton igAccountId={account.id} variant="primary" />
-          </div>
-          <span className="text-xs text-ink-soft">
-            Última sync <span className="italic">{timeAgo(account.last_synced_at)}</span>
-          </span>
-        </div>
-      </header>
-
-      {/* Banner informativo */}
-      <div className="mt-10 rounded-2xl border border-ink/10 bg-paper/60 px-6 py-4">
-        <p className="text-xs leading-relaxed text-ink-soft">
-          A maior parte dos dados do <strong className="text-ink">Instagram Business</strong> refere-se a
-          resultados <strong className="text-ink">orgânicos</strong>. As métricas que incluem dados
-          pagos estão marcadas no título. Para acessar todos os dados pagos do
-          Instagram, consulte o relatório de <strong className="text-ink">Meta Ads</strong>.
-        </p>
-      </div>
-
-      {/* ============================================================== */}
-      {/* SEÇÃO 1 — KPIs da conta (linhas 1-2) */}
-      {/* ============================================================== */}
-      <SectionTitle eyebrow="Visão geral" title="A conta." />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiNoHistoryCard label="Número de seguidores" />
-        <KpiNoHistoryCard label="Variação de seguidores" />
-        <KpiComparisonCard
-          label="Visualizações totais (orgânicas + pagas)"
-          value={latest?.views}
-          previous={prev?.views}
+      <main className="flex min-w-0 flex-col gap-6 pb-10">
+        <Topbar
+          username={account.ig_username}
+          displayName={displayName}
+          profilePictureUrl={account.ig_profile_picture_url}
+          initials={initials}
+          accountTypeLabel={accountTypeLabel}
+          lastSyncedLabel={timeAgo(account.last_synced_at)}
+          igAccountId={account.id}
         />
-        <KpiWithDateRange
-          label="Alcance total (orgânico + pago) dos últimos 30 dias"
-          value={latest?.reach}
-          previous={prev?.reach}
-          start={period.start}
-          end={period.end}
-        />
-      </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiWithDateRange
-          label="Alcance pago dos últimos 30 dias"
-          value={0}
-          previous={0}
-          start={period.start}
-          end={period.end}
-        />
-        <KpiWithDateRange
-          label="Alcance orgânico dos últimos 30 dias"
-          value={latest?.reach}
-          previous={prev?.reach}
-          start={period.start}
-          end={period.end}
-        />
-        <KpiComparisonCard
-          label="Visitas do perfil"
-          value={latest?.profile_links_taps}
-          previous={prev?.profile_links_taps}
-        />
-        <KpiComparisonCard
-          label="Interações totais"
-          value={latest?.total_interactions}
-          previous={prev?.total_interactions}
-        />
-      </div>
-
-      {/* ============================================================== */}
-      {/* SEÇÃO 2 — Audiência (idade × gênero + alcance diário) */}
-      {/* ============================================================== */}
-      <div className="mt-10 grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Audiência por idade"
-          subtitle="Distribuição de seguidores · API não entrega cruzamento idade × gênero"
-        >
-          <AgeBarChart data={followerAge} color="forest" />
-        </ChartCard>
-        <ChartCard title="Alcance diário" subtitle="Últimos snapshots">
-          <EvolutionChart data={reachData} color="forest" />
-        </ChartCard>
-      </div>
-
-      {/* ============================================================== */}
-      {/* SEÇÃO 3 — Seguidores por gênero (donut) */}
-      {/* ============================================================== */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div /> {/* espaço vazio à esquerda pra balancear */}
-        <ChartCard
-          title="Seguidores por gênero"
-          subtitle={`${sumValues(genderFollower).toLocaleString("pt-BR")} pessoas`}
-        >
-          <DonutChart
-            data={genderDonut}
-            centerValue={sumValues(genderFollower).toLocaleString("pt-BR")}
-            centerLabel="Total"
+        {/* KPI row */}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Seguidores"
+            value={fmtCompact(latest?.followers_count)}
+            trend={trend(latest?.followers_count, prev?.followers_count)}
+            icon={Users}
+            accent="purple"
+            sparkline={followersSpark}
           />
-          <DonutLegend data={genderDonut} />
-        </ChartCard>
-      </div>
+          <KpiCard
+            label="Alcance"
+            value={fmtCompact(latest?.reach)}
+            trend={trend(latest?.reach, prev?.reach)}
+            icon={Eye}
+            accent="blue"
+            sparkline={reachSpark}
+          />
+          <KpiCard
+            label="Interações"
+            value={fmtCompact(latest?.total_interactions)}
+            trend={trend(latest?.total_interactions, prev?.total_interactions)}
+            icon={Activity}
+            accent="pink"
+            sparkline={interactionsSpark}
+          />
+          <KpiCard
+            label="Visualizações"
+            value={fmtCompact(latest?.views)}
+            trend={trend(latest?.views, prev?.views)}
+            icon={TrendingUp}
+            accent="cyan"
+            sparkline={viewsSpark}
+          />
+        </section>
 
-      {/* ============================================================== */}
-      {/* SEÇÃO 4 — Cidades */}
-      {/* ============================================================== */}
-      <div className="mt-10">
-        <DemographicsTable
-          title="Cidades com o maior número de seguidores"
-          subtitle="Top 10"
-          entries={topCitiesFollower}
-          type="city"
-          total={sumValues(demographics.follower?.city)}
-        />
-      </div>
+        {/* Gradient banner CTA */}
+        <section className="dark-card relative overflow-hidden p-6">
+          <div className="dark-bg-grad-banner absolute inset-0" />
+          <div className="relative flex flex-wrap items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 backdrop-blur">
+                <TrendingUp size={20} className="text-white" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/70">
+                  Studio Baires · Insights
+                </p>
+                <h3 className="mt-1 text-2xl font-bold text-white">
+                  Dados de <span className="italic">{period.label.toLowerCase()}</span>
+                </h3>
+                <p className="mt-1 text-sm text-white/70">
+                  Comparados ao período anterior. Sincronize a conta pra atualizar os números.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      {/* ============================================================== */}
-      {/* SEÇÃO 5 — Postagens (KPIs agregados) */}
-      {/* ============================================================== */}
-      <SectionTitle eyebrow="Postagens" title="Posts do feed." />
+        {/* Charts row */}
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <ChartShell
+            title="Alcance diário"
+            subtitle="Snapshots da conta no período"
+            className="lg:col-span-2"
+          >
+            <EvolutionChartDark data={reachData} height={260} />
+          </ChartShell>
+          <ChartShell title="Distribuição de formato" subtitle="Mídia publicada na conta">
+            <DonutChartDark
+              data={formatBuckets}
+              height={220}
+              centerValue={String(mediaCounts.TOTAL ?? 0)}
+              centerLabel="Posts"
+            />
+            <DonutLegendDark data={formatBuckets} />
+          </ChartShell>
+        </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiComparisonCard
-          label="Número de postagens do feed"
-          value={feedAggCurrent.count}
-          previous={feedAggPrev.count}
-        />
-        <KpiWithDateRange
-          label="Alcance das postagens dos últimos 30 dias"
-          value={feedAggCurrent.reach}
-          previous={feedAggPrev.reach}
-          start={period.start}
-          end={period.end}
-        />
-        <KpiComparisonCard
-          label="Interações nas postagens"
-          value={feedAggCurrent.total_interactions}
-          previous={feedAggPrev.total_interactions}
-        />
-      </div>
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ChartShell
+            title="Melhor dia para postar"
+            subtitle="Engajamento médio por dia da semana"
+          >
+            <BarChartDark data={dayOfWeekBars} emptyLabel="Sem posts no período" />
+          </ChartShell>
+          <ChartShell
+            title="Melhor horário para postar"
+            subtitle="Seguidores online por hora"
+          >
+            <HourlyHeatmapDark data={onlineFollowers} />
+          </ChartShell>
+        </section>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiComparisonCard
-          label="Curtidas em postagens"
-          value={feedAggCurrent.likes}
-          previous={feedAggPrev.likes}
-        />
-        <KpiComparisonCard
-          label="Salvamento das postagens"
-          value={feedAggCurrent.saves}
-          previous={feedAggPrev.saves}
-        />
-        <KpiComparisonCard
-          label="Comentários em postagens"
-          value={feedAggCurrent.comments}
-          previous={feedAggPrev.comments}
-        />
-        <KpiComparisonCard
-          label="Compartilhamento das postagens"
-          value={feedAggCurrent.shares}
-          previous={feedAggPrev.shares}
-        />
-      </div>
+        {/* Audiência por idade + gênero */}
+        <SectionTitle eyebrow="Audiência" title="Quem te segue." />
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ChartShell
+            title="Audiência por idade"
+            subtitle="Distribuição de seguidores · IG não cruza idade × gênero"
+          >
+            <BarChartDark data={ageBars} emptyLabel="Sem dados de demografia" />
+          </ChartShell>
+          <ChartShell
+            title="Seguidores por gênero"
+            subtitle={`${sumValues(genderFollower).toLocaleString("pt-BR")} pessoas`}
+          >
+            <DonutChartDark
+              data={genderDonut}
+              height={220}
+              centerValue={fmtCompact(sumValues(genderFollower))}
+              centerLabel="Total"
+            />
+            <DonutLegendDark data={genderDonut} />
+          </ChartShell>
+        </section>
 
-      {/* Melhor dia + melhor horário */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Melhor dia para postagens"
-          subtitle="Engajamento médio por dia da semana (dos posts publicados)"
-        >
-          <DayOfWeekChart data={dayOfWeekStats} />
-        </ChartCard>
-        <ChartCard
-          title="Melhor horário para postagens"
-          subtitle="Seguidores online por hora"
-        >
-          <HourlyBarChart data={onlineFollowers} />
-        </ChartCard>
-      </div>
+        {/* Geografia */}
+        <SectionTitle eyebrow="Geografia" title="De onde vem o público." />
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <DemographicsTableDark
+            title="Cidades (seguidores)"
+            subtitle="Top 10"
+            entries={topCitiesFollower}
+            type="city"
+            total={sumValues(demographics.follower?.city)}
+          />
+          <DemographicsTableDark
+            title="Países (seguidores)"
+            subtitle="Top 6"
+            entries={topCountriesFollower}
+            type="country"
+            total={sumValues(demographics.follower?.country)}
+          />
+          <DemographicsTableDark
+            title="Cidades alcançadas"
+            subtitle="Top 10 no período"
+            entries={topCitiesReached}
+            type="city"
+            total={sumValues(demographics.reached?.city)}
+          />
+        </section>
 
-      {/* ============================================================== */}
-      {/* SEÇÃO 6 — Reels (KPIs agregados) */}
-      {/* ============================================================== */}
-      <SectionTitle eyebrow="Reels" title="Performance dos reels." />
+        {/* Posts do feed */}
+        <SectionTitle eyebrow="Posts" title="Performance do feed." />
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCompareCard
+            label="Posts publicados"
+            value={feedAggCurrent.count}
+            previous={feedAggPrev.count}
+          />
+          <KpiCompareCard
+            label="Alcance dos posts"
+            value={feedAggCurrent.reach}
+            previous={feedAggPrev.reach}
+            start={period.start}
+            end={period.end}
+          />
+          <KpiCompareCard
+            label="Interações"
+            value={feedAggCurrent.total_interactions}
+            previous={feedAggPrev.total_interactions}
+          />
+          <KpiCompareCard
+            label="Curtidas"
+            value={feedAggCurrent.likes}
+            previous={feedAggPrev.likes}
+          />
+        </section>
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCompareCard
+            label="Comentários"
+            value={feedAggCurrent.comments}
+            previous={feedAggPrev.comments}
+          />
+          <KpiCompareCard
+            label="Salvamentos"
+            value={feedAggCurrent.saves}
+            previous={feedAggPrev.saves}
+          />
+          <KpiCompareCard
+            label="Compartilhamentos"
+            value={feedAggCurrent.shares}
+            previous={feedAggPrev.shares}
+          />
+          <KpiCompareCard
+            label="Visualizações do feed"
+            value={feedAggCurrent.views}
+            previous={feedAggPrev.views}
+          />
+        </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiComparisonCard
-          label="Número de Reels"
-          value={reelsAggCurrent.count}
-          previous={reelsAggPrev.count}
-        />
-        <KpiWithDateRange
-          label="Alcance dos reels dos últimos 30 dias"
-          value={reelsAggCurrent.reach}
-          previous={reelsAggPrev.reach}
-          start={period.start}
-          end={period.end}
-        />
-        <KpiComparisonCard
-          label="Interações nos Reels"
-          value={reelsAggCurrent.total_interactions}
-          previous={reelsAggPrev.total_interactions}
-        />
-      </div>
+        {/* Reels */}
+        <SectionTitle eyebrow="Reels" title="Performance dos reels." />
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCompareCard
+            label="Reels publicados"
+            value={reelsAggCurrent.count}
+            previous={reelsAggPrev.count}
+          />
+          <KpiCompareCard
+            label="Alcance dos reels"
+            value={reelsAggCurrent.reach}
+            previous={reelsAggPrev.reach}
+            start={period.start}
+            end={period.end}
+          />
+          <KpiCompareCard
+            label="Interações nos reels"
+            value={reelsAggCurrent.total_interactions}
+            previous={reelsAggPrev.total_interactions}
+          />
+          <KpiCompareCard
+            label="Visualizações dos reels"
+            value={reelsAggCurrent.views}
+            previous={reelsAggPrev.views}
+          />
+        </section>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiComparisonCard
-          label="Curtidas nos Reels"
-          value={reelsAggCurrent.likes}
-          previous={reelsAggPrev.likes}
-        />
-        <KpiComparisonCard
-          label="Comentários nos Reels"
-          value={reelsAggCurrent.comments}
-          previous={reelsAggPrev.comments}
-        />
-        <KpiComparisonCard
-          label="Salvamento nos Reels"
-          value={reelsAggCurrent.saves}
-          previous={reelsAggPrev.saves}
-        />
-        <KpiComparisonCard
-          label="Compartilhamento nos Reels"
-          value={reelsAggCurrent.shares}
-          previous={reelsAggPrev.shares}
-        />
-      </div>
+        {/* Stories placeholder */}
+        <SectionTitle eyebrow="Stories" title="Stories (em breve)." />
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <KpiEmptyCard
+            label="Número de stories"
+            helpText="Sync de stories ainda não implementado. Stories expiram em 24h — requer cron a cada 4–6h."
+          />
+          <KpiEmptyCard
+            label="Visualizações de stories"
+            helpText="Disponível após implementar sync de stories."
+          />
+          <KpiEmptyCard
+            label="Alcance dos stories"
+            helpText="Disponível após implementar sync de stories."
+          />
+        </section>
 
-      {/* ============================================================== */}
-      {/* SEÇÃO 7 — Stories (preliminar — implementar sync) */}
-      {/* ============================================================== */}
-      <SectionTitle eyebrow="Stories" title="Stories nas últimas 24h." />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiComparisonCard label="Número de stories" value={0} previous={0} />
-        <KpiComparisonCard
-          label="Visualizações totais dos Stories"
-          value={0}
-          previous={0}
-        />
-        <KpiWithDateRange
-          label="Alcance dos stories dos últimos 30 dias"
-          value={0}
-          previous={0}
-          start={period.start}
-          end={period.end}
-        />
-      </div>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiComparisonCard
-          label="Total de interações com Stories"
-          value={0}
-          previous={0}
-        />
-        <KpiComparisonCard
-          label="Total de respostas a stories"
-          value={0}
-          previous={0}
-        />
-        <KpiComparisonCard
-          label="Total de compartilhamentos dos Stories"
-          value={0}
-          previous={0}
-        />
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-dashed border-tape/40 bg-tape/10 px-4 py-3">
-        <p className="text-xs text-ink-soft">
-          ⚠️ Sync de stories ainda não implementado. Stories expiram em 24h na
-          API — implementação requer cron job a cada 4-6 horas (próxima fase).
-        </p>
-      </div>
-
-      {/* ============================================================== */}
-      {/* SEÇÃO 8 — Geografia detalhada */}
-      {/* ============================================================== */}
-      <SectionTitle eyebrow="Geografia" title="De onde vem o público." />
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DemographicsTable
-          title="Países — Seguidores"
-          subtitle="Top 6"
-          entries={topCountriesFollower}
-          type="country"
-          total={sumValues(demographics.follower?.country)}
-        />
-        <DemographicsTable
-          title="Cidades — Alcançadas (7d)"
-          subtitle="Top 10 alcançadas no período"
-          entries={topEntries(demographics.reached?.city, 10)}
-          type="city"
-          total={sumValues(demographics.reached?.city)}
-        />
-      </div>
-
-      {/* ============================================================== */}
-      {/* SEÇÃO 9 — Mídias (grid/tabela com filtros) */}
-      {/* ============================================================== */}
-      <section className="mt-16">
-        <SectionTitle
-          eyebrow="Conteúdo"
-          title="Dados orgânicos de postagens."
-          marginTop={false}
-        />
-
-        <div className="mb-4 flex flex-wrap gap-2">
+        {/* Tabs e Mídia grid */}
+        <SectionTitle eyebrow="Conteúdo" title="Posts no período." />
+        <div className="mb-2 flex flex-wrap gap-2">
           <TabLink
-            href={`/dashboard/contas/${handle}`}
+            href={`/dashboard/contas/${handle}?periodo=${sParams.periodo ?? "30d"}`}
             active={activeTab === "tudo"}
             label="Tudo"
             count={mediaCounts.TOTAL}
           />
           <TabLink
-            href={`/dashboard/contas/${handle}?aba=posts`}
+            href={`/dashboard/contas/${handle}?aba=posts&periodo=${sParams.periodo ?? "30d"}`}
             active={activeTab === "posts"}
             label="Posts"
             count={mediaCounts.FEED}
           />
           <TabLink
-            href={`/dashboard/contas/${handle}?aba=reels`}
+            href={`/dashboard/contas/${handle}?aba=reels&periodo=${sParams.periodo ?? "30d"}`}
             active={activeTab === "reels"}
             label="Reels"
             count={mediaCounts.REELS}
           />
         </div>
-
-        <p className="mb-4 text-xs text-ink-soft">
+        <p className="mb-3 text-xs text-white/40">
           {media.length === 0
             ? "Nenhuma mídia no período selecionado"
-            : `${media.length} ${media.length === 1 ? "mídia" : "mídias"} no período · clique pra ver detalhes`}
+            : `${media.length} ${media.length === 1 ? "mídia" : "mídias"} · top 12 exibidas`}
         </p>
+        <MediaGridDark items={media} />
+      </main>
 
-        <MediaDisplay items={media} />
-      </section>
-    </div>
-  );
-}
-
-// ============================================================================
-// Sub-components
-// ============================================================================
-
-function SectionTitle({
-  eyebrow,
-  title,
-  marginTop = true,
-}: {
-  eyebrow: string;
-  title: string;
-  marginTop?: boolean;
-}) {
-  return (
-    <div className={marginTop ? "mb-6 mt-16" : "mb-6"}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
-        {eyebrow}
-      </p>
-      <h2 className="headline-display mt-1 text-3xl text-ink sm:text-4xl">
-        {title}
-      </h2>
-    </div>
-  );
-}
-
-function ChartCard({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-ink/10 bg-paper p-6">
-      <h3 className="headline-display text-xl text-ink">{title}</h3>
-      {subtitle && <p className="text-xs text-ink-soft">{subtitle}</p>}
-      <div className="mt-4">{children}</div>
+      <AiPanel
+        firstName={(user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "você").split(" ")[0]}
+        reach30d={latest?.reach ?? 0}
+        followersCount={latest?.followers_count ?? 0}
+        bestPostingDay={bestPostingDay}
+        topMediaType={topMediaTypeKey}
+      />
     </div>
   );
 }
@@ -623,17 +519,17 @@ function TabLink({
   return (
     <Link
       href={href}
-      className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors ${
+      className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition ${
         active
-          ? "bg-ink text-cream"
-          : "border border-ink/15 bg-paper text-ink hover:border-ink/40"
+          ? "dark-bg-grad-purple-pink text-white dark-glow-purple"
+          : "border border-white/[0.06] bg-[var(--color-surface)]/60 text-white/70 hover:text-white"
       }`}
     >
       {label}
       {count !== undefined && (
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-            active ? "bg-cream/20 text-cream" : "bg-ink/10 text-ink-soft"
+            active ? "bg-white/20 text-white" : "bg-white/[0.06] text-white/60"
           }`}
         >
           {count}

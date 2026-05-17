@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand palette — Studio Baires */
+  /* Brand palette — Studio Baires (editorial Y2K, usada em login/overview/conectar) */
   --color-cream: #ece3d0;
   --color-paper: #f5edd9;
   --color-forest: #2f4a35;
@@ -12,10 +12,128 @@
   --color-ink: #2a1f18;
   --color-ink-soft: #5a4a3a;
 
+  /* Dark/Neon palette — usada apenas em /dashboard/contas/[handle] */
+  --color-bg-base: #0b0b0f;
+  --color-bg-elevated: #111114;
+  --color-bg-raised: #171719;
+  --color-surface: #1a1a1f;
+  --color-surface-2: #202028;
+  --color-surface-3: #26262f;
+  --color-neon-purple: #8b5cf6;
+  --color-neon-pink: #ec4899;
+  --color-neon-blue: #3b82f6;
+  --color-neon-cyan: #22d3ee;
+  --color-success-neon: #22c55e;
+  --color-danger-neon: #ef4444;
+  --color-warning-neon: #f59e0b;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.72);
+  --color-text-muted: rgba(255, 255, 255, 0.5);
+  --color-text-faint: rgba(255, 255, 255, 0.32);
+
   /* Typography */
   --font-display: var(--font-ivypresto);
   --font-sans: var(--font-jakarta);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Dark-scope utility helpers — só aplicados dentro de /dashboard/contas/[handle] */
+.dark-scope {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.dark-scope ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.dark-scope ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+.dark-scope ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.dark-card {
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0)
+    ),
+    var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.dark-card-hover {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+.dark-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.dark-text-grad {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dark-glow-purple {
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.3),
+    0 12px 40px rgba(139, 92, 246, 0.25);
+}
+
+.dark-bg-grad-banner {
+  background:
+    radial-gradient(
+      80% 120% at 0% 0%,
+      rgba(236, 72, 153, 0.45) 0%,
+      rgba(139, 92, 246, 0.2) 40%,
+      rgba(59, 130, 246, 0.1) 80%
+    );
+}
+
+.dark-bg-grad-purple-pink {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+}
+
+/* Ambient glow no fundo do dark scope */
+.dark-scope::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(
+      1200px 600px at 80% -10%,
+      rgba(139, 92, 246, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at -10% 30%,
+      rgba(236, 72, 153, 0.06),
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 400px at 60% 110%,
+      rgba(59, 130, 246, 0.07),
+      transparent 60%
+    );
 }
 
 /* Subtle paper-grid texture overlay applied via utility class */
