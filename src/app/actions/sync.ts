@@ -292,17 +292,21 @@ export async function syncAccountMedia(
       }
 
       // Insere snapshot de insights (não upsert — guardamos histórico)
+      // IMPORTANTE: a API retorna "saved", mapeamos pra coluna "saves".
       await supabase.from("media_insights").insert({
         media_id: mediaRow.id,
         likes: findMetric(insights, "likes"),
         comments: findMetric(insights, "comments"),
-        saves: findMetric(insights, "saves"),
+        saves: findMetric(insights, "saved"), // API name = "saved"
         shares: findMetric(insights, "shares"),
         reach: findMetric(insights, "reach"),
         impressions: findMetric(insights, "impressions"),
-        views: findMetric(insights, "views"),
         plays: findMetric(insights, "plays"),
         total_interactions: findMetric(insights, "total_interactions"),
+        follows: findMetric(insights, "follows"),
+        profile_visits: findMetric(insights, "profile_visits"),
+        profile_activity: findMetric(insights, "profile_activity"),
+        navigation: findMetric(insights, "navigation"),
         exits: findMetric(insights, "exits"),
         taps_forward: findMetric(insights, "taps_forward"),
         taps_back: findMetric(insights, "taps_back"),

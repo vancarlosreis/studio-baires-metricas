@@ -71,15 +71,11 @@ export type InsightsMetric =
   | "profile_views" // só BUSINESS
   | "website_clicks"; // só BUSINESS
 
-/** Métricas disponíveis pra qualquer conta (BUSINESS + CREATOR). */
+/** Métricas disponíveis pra qualquer conta (BUSINESS + CREATOR) no nível conta. */
 export const UNIVERSAL_METRICS: InsightsMetric[] = [
   "reach",
   "accounts_engaged",
   "total_interactions",
-  "likes",
-  "comments",
-  "shares",
-  "saves",
 ];
 
 /** Métricas adicionais disponíveis só pra contas BUSINESS. */
@@ -283,16 +279,19 @@ export async function getMediaList(
   };
 }
 
-// Métricas suportadas por tipo de mídia.
+// Métricas suportadas por tipo de mídia (descobertas via erro 400 da API).
+// IMPORTANTE: a API quer "saved" (não "saves") — mapeamos pra coluna saves no banco.
 // Ref: docs Instagram Graph API v23.
 const FEED_METRICS = [
   "reach",
   "likes",
   "comments",
   "shares",
-  "saves",
+  "saved", // API name; coluna no banco = saves
   "total_interactions",
-  "views",
+  "follows",
+  "profile_visits",
+  "profile_activity",
 ];
 
 const REELS_METRICS = [
@@ -300,10 +299,11 @@ const REELS_METRICS = [
   "likes",
   "comments",
   "shares",
-  "saves",
+  "saved",
   "total_interactions",
-  "views",
   "plays",
+  "follows",
+  "profile_visits",
 ];
 
 const STORY_METRICS = [
@@ -313,6 +313,7 @@ const STORY_METRICS = [
   "taps_back",
   "exits",
   "replies",
+  "navigation",
 ];
 
 export function getMetricsForMedia(

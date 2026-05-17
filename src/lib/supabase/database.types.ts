@@ -234,11 +234,15 @@ export type Database = {
           comments: number | null
           created_at: string
           exits: number | null
+          follows: number | null
           id: string
           impressions: number | null
           likes: number | null
           media_id: string
+          navigation: number | null
           plays: number | null
+          profile_activity: number | null
+          profile_visits: number | null
           raw_payload: Json | null
           reach: number | null
           replies: number | null
@@ -255,11 +259,15 @@ export type Database = {
           comments?: number | null
           created_at?: string
           exits?: number | null
+          follows?: number | null
           id?: string
           impressions?: number | null
           likes?: number | null
           media_id: string
+          navigation?: number | null
           plays?: number | null
+          profile_activity?: number | null
+          profile_visits?: number | null
           raw_payload?: Json | null
           reach?: number | null
           replies?: number | null
@@ -276,11 +284,15 @@ export type Database = {
           comments?: number | null
           created_at?: string
           exits?: number | null
+          follows?: number | null
           id?: string
           impressions?: number | null
           likes?: number | null
           media_id?: string
+          navigation?: number | null
           plays?: number | null
+          profile_activity?: number | null
+          profile_visits?: number | null
           raw_payload?: Json | null
           reach?: number | null
           replies?: number | null
