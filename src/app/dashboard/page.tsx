@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { KpiCard } from "@/components/kpi-card";
-import { AccountCard, type AccountMock } from "@/components/account-card";
+import { AccountCard } from "@/components/account-card";
 import { createClient } from "@/lib/supabase/server";
 import { getFirstName } from "@/lib/user";
+import { listIgAccounts } from "@/lib/queries/ig-accounts";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -11,39 +12,17 @@ function getGreeting(): string {
   return "Boa noite";
 }
 
-// Mock data — substituir por dados reais quando integrar Meta Graph API
-const mockAccounts: AccountMock[] = [
-  {
-    id: "1",
-    handle: "@duda.macedogr",
-    name: "Duda Gregório",
-    followers: 48200,
-    growth30d: 12.4,
-    reach30d: 284000,
-    initials: "DG",
-  },
-  {
-    id: "2",
-    handle: "@clinica.belapele",
-    name: "Clínica Bela Pele",
-    followers: 12500,
-    growth30d: 4.1,
-    reach30d: 56300,
-    initials: "BP",
-  },
-  {
-    id: "3",
-    handle: "@cafe.matinal",
-    name: "Café Matinal",
-    followers: 8900,
-    growth30d: -1.8,
-    reach30d: 34100,
-    initials: "CM",
-  },
-];
+function formatNumber(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}k`;
+  return n.toString();
+}
 
 type SearchParams = Promise<{
   connected?: string;
+  synced?: string;
+  sync_error?: string;
 }>;
 
 export default async function DashboardPage({
@@ -52,8 +31,6 @@ export default async function DashboardPage({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
-  const justConnected = params.connected;
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -61,15 +38,50 @@ export default async function DashboardPage({
   const firstName = getFirstName(user);
   const greeting = getGreeting();
 
+  const accounts = await listIgAccounts(supabase);
+
+  // KPIs agregados a partir dos snapshots
+  const totalFollowers = accounts.reduce(
+    (sum, a) => sum + (a.latest_snapshot?.followers_count ?? 0),
+    0,
+  );
+  const totalReach = accounts.reduce(
+    (sum, a) => sum + (a.latest_snapshot?.reach ?? 0),
+    0,
+  );
+  const totalPosts = accounts.reduce(
+    (sum, a) => sum + (a.latest_snapshot?.media_count ?? 0),
+    0,
+  );
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
-      {justConnected && (
+      {params.connected && (
         <div className="mb-8 rounded-2xl border border-forest/30 bg-forest/5 px-6 py-4">
           <p className="text-sm font-semibold text-forest">
-            ✨ <strong className="font-bold">@{justConnected}</strong> conectada com sucesso!
+            ✨ <strong className="font-bold">@{params.connected}</strong> conectada com sucesso!
           </p>
           <p className="mt-1 text-xs text-forest/80">
-            As métricas começarão a aparecer na próxima sincronização (em alguns minutos).
+            Clica em <em>&ldquo;Sincronizar agora&rdquo;</em> no card pra puxar as primeiras métricas.
+          </p>
+        </div>
+      )}
+
+      {params.synced && (
+        <div className="mb-8 rounded-2xl border border-forest/30 bg-forest/5 px-6 py-4">
+          <p className="text-sm font-semibold text-forest">
+            ✓ Sincronizada com sucesso.
+          </p>
+        </div>
+      )}
+
+      {params.sync_error && (
+        <div className="mb-8 rounded-2xl border border-burgundy/30 bg-burgundy/5 px-6 py-4">
+          <p className="text-sm font-semibold text-burgundy">
+            Falha ao sincronizar
+          </p>
+          <p className="mt-1 text-xs text-burgundy/80">
+            <code>{params.sync_error}</code>
           </p>
         </div>
       )}
@@ -83,50 +95,63 @@ export default async function DashboardPage({
           {greeting}, <span className="text-burgundy">{firstName}</span>.
         </h1>
         <p className="mt-3 max-w-2xl text-base text-ink-soft sm:text-lg">
-          Aqui está o resumo dos últimos 30 dias dos seus clientes.
+          {accounts.length === 0
+            ? "Conecte sua primeira conta Instagram pra começar."
+            : `Resumo das ${accounts.length === 1 ? "métricas" : `${accounts.length} contas`} dos seus clientes.`}
         </p>
       </div>
 
-      {/* KPIs */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Contas conectadas"
-          value="3"
-          hint="ativas"
-          trend="neutral"
-        />
-        <KpiCard
-          label="Seguidores totais"
-          value="69.6k"
-          hint="+1.2k"
-          trend="up"
-          accent="forest"
-        />
-        <KpiCard
-          label="Alcance médio"
-          value="125k"
-          hint="+8.4%"
-          trend="up"
-          accent="forest"
-        />
-        <KpiCard
-          label="Posts no mês"
-          value="42"
-          hint="-3"
-          trend="down"
-          accent="burgundy"
-        />
-      </section>
+      {/* KPIs agregados (só mostra se tiver contas) */}
+      {accounts.length > 0 && (
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Contas conectadas"
+            value={String(accounts.length)}
+            hint={accounts.length === 1 ? "ativa" : "ativas"}
+            trend="neutral"
+          />
+          <KpiCard
+            label="Seguidores totais"
+            value={formatNumber(totalFollowers)}
+            trend="neutral"
+            accent="forest"
+          />
+          <KpiCard
+            label="Alcance total"
+            value={formatNumber(totalReach)}
+            trend="neutral"
+            accent="forest"
+          />
+          <KpiCard
+            label="Posts totais"
+            value={formatNumber(totalPosts)}
+            trend="neutral"
+          />
+        </section>
+      )}
 
-      {/* Contas */}
+      {/* Lista de contas */}
       <section className="mt-16">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h2 className="headline-display text-3xl text-ink">
-              Suas <span className="italic">contas</span>
+              {accounts.length === 0 ? (
+                <>
+                  Suas <span className="italic">contas</span>
+                </>
+              ) : (
+                <>
+                  {accounts.length === 1 ? "Sua" : "Suas"}{" "}
+                  <span className="italic">contas</span>
+                </>
+              )}
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
-              {mockAccounts.length} {mockAccounts.length === 1 ? "conta conectada" : "contas conectadas"}
+              {accounts.length === 0
+                ? "Nenhuma conta conectada ainda"
+                : accounts.length === 1
+                  ? "1 conta conectada"
+                  : `${accounts.length} contas conectadas`}
             </p>
           </div>
           <Link
@@ -137,21 +162,37 @@ export default async function DashboardPage({
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {mockAccounts.map((account) => (
-            <AccountCard key={account.id} account={account} />
-          ))}
-        </div>
+        {accounts.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {accounts.map((account) => (
+              <AccountCard key={account.id} account={account} />
+            ))}
+          </div>
+        )}
       </section>
+    </div>
+  );
+}
 
-      {/* Empty state aviso */}
-      <div className="mt-16 rounded-2xl border border-dashed border-ink/20 bg-paper/50 p-8 text-center">
-        <p className="text-sm text-ink-soft">
-          <span className="italic">Estes são dados de demonstração.</span>{" "}
-          Quando você conectar uma conta real do Instagram, as métricas serão
-          atualizadas automaticamente.
-        </p>
+function EmptyState() {
+  return (
+    <div className="rounded-3xl border border-dashed border-ink/20 bg-paper/50 px-8 py-16 text-center">
+      <div className="headline-display text-4xl text-ink">
+        Vamos começar?
       </div>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-soft">
+        <span className="italic">Conecte sua primeira conta Instagram</span> pra
+        ver métricas, alcance, posts em destaque e gerar relatórios brandados
+        pros seus clientes.
+      </p>
+      <Link
+        href="/dashboard/conectar"
+        className="mt-6 inline-flex h-12 items-center rounded-full bg-ink px-8 text-sm font-semibold text-cream transition-colors hover:bg-forest"
+      >
+        Conectar primeira conta
+      </Link>
     </div>
   );
 }
