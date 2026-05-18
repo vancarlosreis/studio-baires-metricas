@@ -216,6 +216,7 @@ export default async function AccountDetailDarkPage({
   const followersSpark = chartSnapshots.slice(-12).map((s) => s.followers_count ?? 0);
   const interactionsSpark = chartSnapshots.slice(-12).map((s) => s.total_interactions ?? 0);
   const viewsSpark = chartSnapshots.slice(-12).map((s) => s.views ?? 0);
+  const linkTapsSpark = chartSnapshots.slice(-12).map((s) => s.profile_links_taps ?? 0);
 
   function trend(curr?: number | null, p?: number | null): { delta: number; direction: "up" | "down" } | null {
     if (curr == null || p == null || p === 0) return null;
@@ -254,8 +255,8 @@ export default async function AccountDetailDarkPage({
           igAccountId={account.id}
         />
 
-        {/* KPI row */}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* KPI row — 5 KPIs principais da conta */}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <KpiCard
             label="Seguidores"
             value={fmtCompact(latest?.followers_count)}
@@ -287,6 +288,15 @@ export default async function AccountDetailDarkPage({
             icon="trending-up"
             accent="cyan"
             sparkline={viewsSpark}
+          />
+          <KpiCard
+            label="Toques no link da bio"
+            value={fmtCompact(latest?.profile_links_taps)}
+            trend={trend(latest?.profile_links_taps, prev?.profile_links_taps)}
+            icon="link"
+            accent="purple"
+            sparkline={linkTapsSpark}
+            hint="profile_links_taps · IG v22+"
           />
         </section>
 
