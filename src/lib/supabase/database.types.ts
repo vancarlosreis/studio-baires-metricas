@@ -64,6 +64,12 @@ export type Database = {
           total_interactions: number | null
           views: number | null
           website_clicks: number | null
+          paid_reach: number | null
+          paid_views: number | null
+          paid_total_interactions: number | null
+          organic_reach: number | null
+          organic_views: number | null
+          organic_total_interactions: number | null
         }
         Insert: {
           accounts_engaged?: number | null
@@ -89,6 +95,12 @@ export type Database = {
           total_interactions?: number | null
           views?: number | null
           website_clicks?: number | null
+          paid_reach?: number | null
+          paid_views?: number | null
+          paid_total_interactions?: number | null
+          organic_reach?: number | null
+          organic_views?: number | null
+          organic_total_interactions?: number | null
         }
         Update: {
           accounts_engaged?: number | null
@@ -114,6 +126,12 @@ export type Database = {
           total_interactions?: number | null
           views?: number | null
           website_clicks?: number | null
+          paid_reach?: number | null
+          paid_views?: number | null
+          paid_total_interactions?: number | null
+          organic_reach?: number | null
+          organic_views?: number | null
+          organic_total_interactions?: number | null
         }
         Relationships: [
           {

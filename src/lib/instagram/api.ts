@@ -328,6 +328,75 @@ export async function getAccountInsights(
   return (json.data ?? []) as InsightResult[];
 }
 
+// ============================================================================
+// Breakdown por media_product_type — separa AD (pago) de POST/REEL/CAROUSEL/STORY
+// ============================================================================
+
+export type ProductTypeBreakdown = {
+  metric: string;
+  total: number;
+  by_type: Record<string, number>; // { POST: X, REEL: Y, AD: Z, STORY: W, CAROUSEL_CONTAINER: V }
+  /** Subset pago (= AD). */
+  paid: number;
+  /** Soma dos demais tipos (orgânico real). */
+  organic: number;
+};
+
+/**
+ * Busca uma métrica de conta com breakdown=media_product_type.
+ * Retorna o total + separação POST/REEL/CAROUSEL_CONTAINER/STORY/AD.
+ * AD = tráfego pago.
+ *
+ * Métricas suportadas (testadas): reach, views, total_interactions.
+ */
+export async function getAccountMetricWithProductTypeBreakdown(
+  accessToken: string,
+  metric: "reach" | "views" | "total_interactions",
+  options: { since?: number; until?: number } = {},
+  ctx?: GraphContext,
+): Promise<ProductTypeBreakdown | null> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
+  const params = new URLSearchParams({
+    metric,
+    period: "day",
+    metric_type: "total_value",
+    breakdown: "media_product_type",
+    access_token: accessToken,
+  });
+  if (options.since) params.set("since", String(options.since));
+  if (options.until) params.set("until", String(options.until));
+
+  try {
+    const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const item = json?.data?.[0];
+    if (!item) return null;
+
+    const total = item.total_value?.value ?? 0;
+    const results = item.total_value?.breakdowns?.[0]?.results ?? [];
+
+    const byType: Record<string, number> = {};
+    for (const row of results) {
+      const key = (row.dimension_values?.[0] ?? "UNKNOWN") as string;
+      byType[key] = typeof row.value === "number" ? row.value : 0;
+    }
+
+    const paid = byType.AD ?? 0;
+    const organic = total - paid;
+
+    return {
+      metric,
+      total,
+      by_type: byType,
+      paid,
+      organic,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Versão tolerante: chama getAccountInsights por subset (universais primeiro,
  * depois business-only se aplicável). Se um subset falhar, retorna o que conseguiu.

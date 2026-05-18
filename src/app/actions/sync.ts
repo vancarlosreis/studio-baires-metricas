@@ -7,6 +7,7 @@ import { decryptToken } from "@/lib/crypto";
 import {
   getAccountProfile,
   getAccountInsightsResilient,
+  getAccountMetricWithProductTypeBreakdown,
   getMediaList,
   getMediaInsightsResilient,
   findMetric,
@@ -132,6 +133,31 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
       console.warn("[syncAccountProfile] online_followers falhou:", err);
     }
 
+    // 4.1. Breakdown de paid (AD) vs orgânico via media_product_type
+    //      pra reach, views e total_interactions. Fonte: IG Insights API
+    //      breakdown=media_product_type, dimension AD.
+    const [reachBreakdown, viewsBreakdown, interactionsBreakdown] =
+      await Promise.all([
+        getAccountMetricWithProductTypeBreakdown(
+          accessToken,
+          "reach",
+          { since, until },
+          graphCtx,
+        ),
+        getAccountMetricWithProductTypeBreakdown(
+          accessToken,
+          "views",
+          { since, until },
+          graphCtx,
+        ),
+        getAccountMetricWithProductTypeBreakdown(
+          accessToken,
+          "total_interactions",
+          { since, until },
+          graphCtx,
+        ),
+      ]);
+
     // 5. Salva snapshot do dia
     const today = new Date().toISOString().slice(0, 10);
     const { error: snapErr } = await supabase
@@ -159,12 +185,24 @@ export async function syncAccountProfile(igAccountId: string): Promise<SyncResul
           website_clicks: findMetric(insights, "website_clicks"),
           // Heatmap de online_followers
           online_followers: onlineFollowers as unknown as never,
+          // Breakdown paid/orgânico via media_product_type
+          paid_reach: reachBreakdown?.paid ?? null,
+          paid_views: viewsBreakdown?.paid ?? null,
+          paid_total_interactions: interactionsBreakdown?.paid ?? null,
+          organic_reach: reachBreakdown?.organic ?? null,
+          organic_views: viewsBreakdown?.organic ?? null,
+          organic_total_interactions: interactionsBreakdown?.organic ?? null,
           raw_payload: {
             profile,
             insights,
             errors: insightErrors,
             period: { since, until, days: INSIGHTS_PERIOD_DAYS },
             online_followers_present: !!onlineFollowers,
+            breakdowns: {
+              reach: reachBreakdown,
+              views: viewsBreakdown,
+              total_interactions: interactionsBreakdown,
+            },
           } as unknown as never,
         },
         { onConflict: "ig_account_id,snapshot_date" },
