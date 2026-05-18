@@ -21,13 +21,12 @@ export function DisconnectAccountButton({
     if (!ok) return;
 
     startTransition(async () => {
-      try {
-        await disconnectInstagramAccount(igAccountId);
-        router.refresh();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Erro desconhecido";
-        window.alert(`Falha ao desconectar: ${msg}`);
+      const result = await disconnectInstagramAccount(igAccountId);
+      if (!result.ok) {
+        window.alert(`Falha ao desconectar: ${result.error}`);
+        return;
       }
+      router.refresh();
     });
   }
 
