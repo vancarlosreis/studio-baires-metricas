@@ -51,7 +51,12 @@ function decryptAccountToken(blob: unknown): string {
   return decryptToken(buffer);
 }
 
-const INSIGHTS_PERIOD_DAYS = 7;
+// 30 dias = bate com o período default do PeriodSelector. Os KPIs da KPI Row
+// (Alcance, Visualizações, Interações, Toques no link) mostram o valor desse
+// snapshot. Em algum momento futuro vale fazer query dinâmica baseada no
+// período selecionado pelo user, mas por enquanto fixar em 30 cobre 95% do
+// uso (default = "Últimos 30 dias").
+const INSIGHTS_PERIOD_DAYS = 30;
 
 export type SyncResult =
   | { ok: true; igAccountId: string; snapshot_date: string; warnings: string[] }
