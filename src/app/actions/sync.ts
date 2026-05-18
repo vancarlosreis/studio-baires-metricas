@@ -21,6 +21,7 @@ import {
   listAdAccounts,
   listAdsWithInsights,
   aggregateAdsByMedia,
+  shortcodeFromPermalink,
 } from "@/lib/instagram/marketing";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -539,19 +540,45 @@ export async function syncPaidInsights(
     }
 
     if (allAds.length === 0) {
+      warnings.push("Nenhum ad encontrado nos últimos 90 dias.");
       return { ok: true, igAccountId, mediaCount: 0, warnings };
     }
 
-    // 3. Agrega por ig_media_id
-    const aggregates = aggregateAdsByMedia(allAds);
-    const adsWithoutMedia = allAds.filter((a) => !a.ig_media_id).length;
-    if (adsWithoutMedia > 0) {
+    // 3. Constrói lookup shortcode → ig_media_id (usando media.permalink já no banco)
+    //    pra resolver ads que não trazem ig_media_id direto mas trazem permalink IG.
+    const { data: existingMedia } = await supabase
+      .from("media")
+      .select("ig_media_id, permalink")
+      .eq("ig_account_id", account.id);
+
+    const shortcodeMap = new Map<string, string>();
+    for (const m of existingMedia ?? []) {
+      const sc = shortcodeFromPermalink(m.permalink);
+      if (sc) shortcodeMap.set(sc, m.ig_media_id);
+    }
+
+    // 4. Agrega por ig_media_id (com fallback de shortcode)
+    const aggregates = aggregateAdsByMedia(allAds, shortcodeMap);
+    const adsWithoutMatch = allAds.filter(
+      (a) => !a.ig_media_id && (!a.ig_shortcode || !shortcodeMap.has(a.ig_shortcode)),
+    ).length;
+    const adsMatchedByShortcode = allAds.filter(
+      (a) => !a.ig_media_id && a.ig_shortcode && shortcodeMap.has(a.ig_shortcode),
+    ).length;
+
+    warnings.push(
+      `${allAds.length} ads encontrados · ${aggregates.length} mídias com boost detectadas` +
+        (adsMatchedByShortcode > 0
+          ? ` (${adsMatchedByShortcode} via permalink)`
+          : ""),
+    );
+    if (adsWithoutMatch > 0) {
       warnings.push(
-        `${adsWithoutMedia} ads sem mídia IG identificável (dark posts ou criativos novos não vinculados).`,
+        `${adsWithoutMatch} ads sem mídia IG identificável (dark posts ou criativos novos não vinculados a nenhum post).`,
       );
     }
 
-    // 4. Pra cada agregado: encontrar media UUID interno via ig_media_id
+    // 5. Pra cada agregado: encontrar media UUID interno via ig_media_id
     //    e inserir snapshot
     let saved = 0;
     for (const agg of aggregates) {

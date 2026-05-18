@@ -137,6 +137,7 @@ export const UNIVERSAL_METRICS: InsightsMetric[] = [
   "comments",
   "shares",
   "saves",
+  "profile_links_taps", // toques no link da bio (substitui website_clicks v22+)
 ];
 
 /** Métricas que precisam de breakdown follower/non-follower — opcional. */
