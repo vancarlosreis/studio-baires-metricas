@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     "effective_status",
     "created_time",
     "creative{id,object_story_id,effective_object_story_id,instagram_permalink_url,thumbnail_url}",
-    `insights.time_range({"since":"${sinceStr}","until":"${untilStr}"}){reach,impressions,clicks,spend,video_views,actions,date_start,date_stop}`,
+    `insights.time_range({"since":"${sinceStr}","until":"${untilStr}"}){reach,impressions,clicks,spend,actions,video_play_actions,date_start,date_stop}`,
   ].join(",");
 
   const params = new URLSearchParams({

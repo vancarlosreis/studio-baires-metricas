@@ -223,8 +223,9 @@ type RawAd = {
       impressions?: string;
       clicks?: string;
       spend?: string;
-      video_views?: string;
+      // video_views foi deprecado — extraímos video views via actions[].video_view agora
       actions?: Array<{ action_type: string; value: string }>;
+      video_play_actions?: Array<{ action_type: string; value: string }>;
     }>;
   };
 };
@@ -296,12 +297,15 @@ export async function listAdsWithInsights(
   until: string,
 ): Promise<AdWithInsights[]> {
   // Pedimos creative + insights na mesma chamada (Graph API resolve subfields)
+  // NOTA: `video_views` foi REMOVIDO da Marketing API. Pra video views agora
+  // usamos `video_play_actions` (lista com action_type) OU extraímos do
+  // `actions` campo unificado quando tiver action_type=video_view.
   const fields = [
     "id",
     "name",
     "effective_status",
     "creative{object_story_id,effective_object_story_id,instagram_permalink_url}",
-    `insights.time_range({"since":"${since}","until":"${until}"}){reach,impressions,clicks,spend,video_views,actions}`,
+    `insights.time_range({"since":"${since}","until":"${until}"}){reach,impressions,clicks,spend,actions,video_play_actions}`,
   ].join(",");
 
   const params = new URLSearchParams({
@@ -326,6 +330,11 @@ export async function listAdsWithInsights(
     };
     for (const ad of json.data ?? []) {
       const ins = ad.insights?.data?.[0];
+      // Video views agora vem de video_play_actions[].value (com action_type
+      // genérico tipo "video_view") OU de actions[].video_view.
+      const videoViews =
+        sumAction(ins?.video_play_actions, ["video_view"]) ||
+        sumAction(ins?.actions, ["video_view"]);
       out.push({
         ad_id: ad.id,
         ad_name: ad.name,
@@ -336,7 +345,7 @@ export async function listAdsWithInsights(
         paid_impressions: ins?.impressions ? parseInt(ins.impressions, 10) : 0,
         paid_clicks: ins?.clicks ? parseInt(ins.clicks, 10) : 0,
         paid_spend: ins?.spend ? parseFloat(ins.spend) : 0,
-        paid_video_views: ins?.video_views ? parseInt(ins.video_views, 10) : 0,
+        paid_video_views: videoViews,
         paid_engagement: sumAction(ins?.actions, [
           "post_engagement",
           "post_reaction",
