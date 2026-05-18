@@ -169,24 +169,24 @@ export async function connectSelectedMetaAccounts(formData: FormData) {
 
 /**
  * Desconecta uma conta IG (mantém histórico no banco mas marca como inativa).
+ * Retorna {ok} ao invés de redirect — quem chama é client component que faz
+ * router.refresh(). Usar redirect() aqui gera NEXT_REDIRECT exception que o
+ * try/catch do client capturava como erro.
  */
-export async function disconnectInstagramAccount(igAccountId: string) {
+export async function disconnectInstagramAccount(
+  igAccountId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/?error=not_authenticated");
-  }
+  if (!user) return { ok: false, error: "Não autenticado." };
 
   const { error } = await supabase
     .from("ig_accounts")
     .update({ is_active: false })
     .eq("id", igAccountId);
 
-  if (error) {
-    throw new Error(`Falha ao desconectar conta: ${error.message}`);
-  }
-
-  redirect("/dashboard");
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
