@@ -367,7 +367,10 @@ export async function getAccountMetricWithProductTypeBreakdown(
   if (options.until) params.set("until", String(options.until));
 
   try {
-    const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`);
+    // cache: no-store pra garantir que mudança de período sempre busca dados frescos
+    const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`, {
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     const json = await res.json();
     const item = json?.data?.[0];
