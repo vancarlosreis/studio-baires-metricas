@@ -27,6 +27,12 @@ type Props = {
   invertDelta?: boolean;
   /** Quando false, esconde toda a área de comparação (pill, anterior). Default true. */
   compare?: boolean;
+  /** Breakdown orgânico vs pago (paid é subconjunto do total `value`). */
+  paid?: {
+    value: number;
+    total: number;
+    label?: string;
+  } | null;
 };
 
 export function KpiCompareCard({
@@ -37,6 +43,7 @@ export function KpiCompareCard({
   end,
   invertDelta = false,
   compare = true,
+  paid,
 }: Props) {
   const delta = value != null && previous != null ? value - previous : null;
   const pct =
@@ -91,6 +98,42 @@ export function KpiCompareCard({
               : `${formatNumber(previous)} no período anterior`}
           </p>
         </>
+      )}
+
+      {paid && paid.total > 0 && (
+        <div className="mt-3 border-t border-white/[0.06] pt-3">
+          {(() => {
+            const paidPct = Math.min(100, (paid.value / paid.total) * 100);
+            const organicPct = 100 - paidPct;
+            return (
+              <>
+                <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider">
+                  <span className="text-white/60">
+                    Orgânico{" "}
+                    <span className="text-white">{organicPct.toFixed(0)}%</span>
+                  </span>
+                  <span className="text-white/60">
+                    {paid.label ?? "Pago"}{" "}
+                    <span className="text-neon-pink">{paidPct.toFixed(0)}%</span>
+                  </span>
+                </div>
+                <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className="h-full bg-neon-blue"
+                    style={{ width: `${organicPct}%` }}
+                  />
+                  <div
+                    className="h-full bg-neon-pink"
+                    style={{ width: `${paidPct}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-[10px] text-white/40">
+                  {formatNumber(paid.value)} via {paid.label?.toLowerCase() ?? "ads"}
+                </p>
+              </>
+            );
+          })()}
+        </div>
       )}
     </div>
   );

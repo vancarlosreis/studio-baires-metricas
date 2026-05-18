@@ -125,6 +125,102 @@ export type Database = {
           },
         ]
       }
+      fb_ad_accounts: {
+        Row: {
+          id: string
+          user_id: string
+          ig_account_id: string
+          fb_ad_account_id: string
+          name: string | null
+          currency: string | null
+          timezone_name: string | null
+          account_status: number | null
+          is_active: boolean
+          connected_at: string
+          last_synced_at: string | null
+          raw_payload: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          ig_account_id: string
+          fb_ad_account_id: string
+          name?: string | null
+          currency?: string | null
+          timezone_name?: string | null
+          account_status?: number | null
+          is_active?: boolean
+          connected_at?: string
+          last_synced_at?: string | null
+          raw_payload?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          ig_account_id?: string
+          fb_ad_account_id?: string
+          name?: string | null
+          currency?: string | null
+          timezone_name?: string | null
+          account_status?: number | null
+          is_active?: boolean
+          connected_at?: string
+          last_synced_at?: string | null
+          raw_payload?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      media_paid_insights: {
+        Row: {
+          id: string
+          media_id: string
+          snapshot_at: string
+          paid_reach: number | null
+          paid_impressions: number | null
+          paid_clicks: number | null
+          paid_spend: number | null
+          paid_video_views: number | null
+          paid_engagement: number | null
+          ad_count: number | null
+          raw_payload: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          media_id: string
+          snapshot_at?: string
+          paid_reach?: number | null
+          paid_impressions?: number | null
+          paid_clicks?: number | null
+          paid_spend?: number | null
+          paid_video_views?: number | null
+          paid_engagement?: number | null
+          ad_count?: number | null
+          raw_payload?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          media_id?: string
+          snapshot_at?: string
+          paid_reach?: number | null
+          paid_impressions?: number | null
+          paid_clicks?: number | null
+          paid_spend?: number | null
+          paid_video_views?: number | null
+          paid_engagement?: number | null
+          ad_count?: number | null
+          raw_payload?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       audience_demographics: {
         Row: {
           audience_type: Database["public"]["Enums"]["audience_type"]
