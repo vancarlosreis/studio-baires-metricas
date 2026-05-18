@@ -22,6 +22,7 @@ import {
   getSnapshotNearDate,
 } from "@/lib/queries/aggregates";
 import { getPaidAggregatesForPeriod } from "@/lib/queries/paid";
+import { fetchAccountKpisForPeriod } from "@/lib/queries/account-kpis";
 import { resolvePeriod, previousPeriod } from "@/lib/period";
 import { Sidebar } from "@/components/dashboard-dark/Sidebar";
 import { Topbar } from "@/components/dashboard-dark/Topbar";
@@ -143,6 +144,10 @@ export default async function AccountDetailDarkPage({
     snapshotBeforePeriod,
     paidFeed,
     paidReels,
+    // KPIs dinâmicos do topo (resposta ao período selecionado) — chamada
+    // direta à IG API com since/until do period. Inclui paid breakdown.
+    kpisCurrentPeriod,
+    kpisPreviousPeriod,
   ] = await Promise.all([
     listAccountSnapshots(supabase, account.id, 365),
     listMediaWithInsights(supabase, account.id, { limit: 100, productType }),
@@ -156,6 +161,8 @@ export default async function AccountDetailDarkPage({
     getSnapshotNearDate(supabase, account.id, previous.end),
     getPaidAggregatesForPeriod(supabase, account.id, period.start, period.end, "FEED"),
     getPaidAggregatesForPeriod(supabase, account.id, period.start, period.end, "REELS"),
+    fetchAccountKpisForPeriod(account, period.start, period.end),
+    fetchAccountKpisForPeriod(account, previous.start, previous.end),
   ]);
 
   const media = allMedia.filter((m) => {
@@ -272,16 +279,16 @@ export default async function AccountDetailDarkPage({
           />
           <KpiCard
             label="Alcance"
-            value={fmtCompact(latest?.reach)}
-            trend={trend(latest?.reach, prev?.reach)}
+            value={fmtCompact(kpisCurrentPeriod.reach)}
+            trend={trend(kpisCurrentPeriod.reach, kpisPreviousPeriod.reach)}
             icon="eye"
             accent="blue"
             sparkline={reachSpark}
             paid={
-              latest?.paid_reach != null && latest?.reach
+              kpisCurrentPeriod.paid_reach != null && kpisCurrentPeriod.reach
                 ? {
-                    value: latest.paid_reach,
-                    total: latest.reach,
+                    value: kpisCurrentPeriod.paid_reach,
+                    total: kpisCurrentPeriod.reach,
                     label: "Ads",
                   }
                 : null
@@ -289,16 +296,20 @@ export default async function AccountDetailDarkPage({
           />
           <KpiCard
             label="Interações"
-            value={fmtCompact(latest?.total_interactions)}
-            trend={trend(latest?.total_interactions, prev?.total_interactions)}
+            value={fmtCompact(kpisCurrentPeriod.total_interactions)}
+            trend={trend(
+              kpisCurrentPeriod.total_interactions,
+              kpisPreviousPeriod.total_interactions,
+            )}
             icon="activity"
             accent="pink"
             sparkline={interactionsSpark}
             paid={
-              latest?.paid_total_interactions != null && latest?.total_interactions
+              kpisCurrentPeriod.paid_total_interactions != null &&
+              kpisCurrentPeriod.total_interactions
                 ? {
-                    value: latest.paid_total_interactions,
-                    total: latest.total_interactions,
+                    value: kpisCurrentPeriod.paid_total_interactions,
+                    total: kpisCurrentPeriod.total_interactions,
                     label: "Ads",
                   }
                 : null
@@ -306,16 +317,16 @@ export default async function AccountDetailDarkPage({
           />
           <KpiCard
             label="Visualizações"
-            value={fmtCompact(latest?.views)}
-            trend={trend(latest?.views, prev?.views)}
+            value={fmtCompact(kpisCurrentPeriod.views)}
+            trend={trend(kpisCurrentPeriod.views, kpisPreviousPeriod.views)}
             icon="trending-up"
             accent="cyan"
             sparkline={viewsSpark}
             paid={
-              latest?.paid_views != null && latest?.views
+              kpisCurrentPeriod.paid_views != null && kpisCurrentPeriod.views
                 ? {
-                    value: latest.paid_views,
-                    total: latest.views,
+                    value: kpisCurrentPeriod.paid_views,
+                    total: kpisCurrentPeriod.views,
                     label: "Ads",
                   }
                 : null
@@ -323,8 +334,11 @@ export default async function AccountDetailDarkPage({
           />
           <KpiCard
             label="Toques no link da bio"
-            value={fmtCompact(latest?.profile_links_taps)}
-            trend={trend(latest?.profile_links_taps, prev?.profile_links_taps)}
+            value={fmtCompact(kpisCurrentPeriod.profile_links_taps)}
+            trend={trend(
+              kpisCurrentPeriod.profile_links_taps,
+              kpisPreviousPeriod.profile_links_taps,
+            )}
             icon="link"
             accent="purple"
             sparkline={linkTapsSpark}
