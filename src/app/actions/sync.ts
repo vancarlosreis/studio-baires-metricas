@@ -18,7 +18,7 @@ import {
   type DemographicBreakdown,
 } from "@/lib/instagram/api";
 import {
-  listAdAccounts,
+  discoverAdAccounts,
   listAdsWithInsights,
   aggregateAdsByMedia,
   shortcodeFromPermalink,
@@ -490,17 +490,29 @@ export async function syncPaidInsights(
   try {
     const accessToken = decryptAccountToken(account.access_token_encrypted);
 
-    // 1. Lista ad accounts
-    const adAccounts = await listAdAccounts(accessToken);
+    // 1. Lista ad accounts (varre /me/adaccounts, /me/assigned_ad_accounts e
+    //    todos os businesses do user via /me/businesses)
+    const discovery = await discoverAdAccounts(accessToken);
+    const adAccounts = discovery.accounts;
+
+    // Sempre adiciona o diagnóstico de descoberta pros warnings (útil pra debug)
+    warnings.push(
+      `Ad accounts: ${adAccounts.length} encontradas ` +
+        `(direct=${discovery.source_counts.direct}, ` +
+        `assigned=${discovery.source_counts.assigned}, ` +
+        `business_owned=${discovery.source_counts.business_owned}, ` +
+        `business_client=${discovery.source_counts.business_client}, ` +
+        `businesses_seen=${discovery.source_counts.businesses_seen})`,
+    );
+    for (const err of discovery.errors) {
+      warnings.push(`discovery: ${err}`);
+    }
+
     if (adAccounts.length === 0) {
-      return {
-        ok: true,
-        igAccountId,
-        mediaCount: 0,
-        warnings: [
-          "Nenhuma ad account encontrada — usuário não gerencia ads ou falta escopo ads_read (re-conectar via Facebook).",
-        ],
-      };
+      warnings.push(
+        "Nenhuma ad account encontrada — verificar se o user é membro de algum Business Manager + tem permissão de leitura nas ad accounts.",
+      );
+      return { ok: true, igAccountId, mediaCount: 0, warnings };
     }
 
     // Upsert ad_accounts no banco
