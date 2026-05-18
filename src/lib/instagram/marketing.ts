@@ -71,6 +71,8 @@ export type AdWithInsights = {
   status?: string;
   /** ID da mídia IG promovida (extraído de object_story_id ou permalink). null se não conseguimos identificar. */
   ig_media_id: string | null;
+  /** Shortcode do IG (ex: "DYX5UlomlS7") extraído de instagram_permalink_url quando disponível. Usado pra fallback de matching via permalink na nossa tabela media. */
+  ig_shortcode: string | null;
   paid_reach: number;
   paid_impressions: number;
   paid_clicks: number;
@@ -101,31 +103,44 @@ type RawAd = {
 };
 
 /**
- * Extrai o ig_media_id de um ad. Tenta múltiplas estratégias:
- * - `creative.object_story_id` no formato "{page_id}_{post_id}" — o post_id
- *   pra posts IG é geralmente o próprio ig_media_id (ou um shortcode resolvível)
- * - `creative.instagram_permalink_url` — extrai shortcode da URL
+ * Tenta extrair o ig_media_id NUMÉRICO direto do creative do ad.
+ * Funciona pra boosted posts onde object_story_id já é o ig_media_id.
  *
- * Retorna null se não conseguir mapear (ex: ad sem mídia associada).
+ * Estratégia: object_story_id formato "{page_id}_{post_id}" — o post_id
+ * pra ads de boosted post IG geralmente É o ig_media_id (17 dígitos).
  */
-function extractIgMediaId(ad: RawAd): string | null {
+function extractIgMediaIdDirect(ad: RawAd): string | null {
   const c = ad.creative;
   if (!c) return null;
 
-  // Strategy 1: object_story_id = "page_id_post_id"
   const osid = c.effective_object_story_id ?? c.object_story_id;
   if (osid && osid.includes("_")) {
     const parts = osid.split("_");
     const last = parts[parts.length - 1];
-    // post_id puro é numérico de 17 dígitos (alinhado com ig_media_id)
     if (/^\d{15,20}$/.test(last)) return last;
   }
-
-  // Strategy 2: instagram_permalink_url contém /p/{shortcode}/ ou /reel/{shortcode}/
-  // Shortcode não é o ig_media_id, mas algumas mídias têm o ID na URL completa
-  // (raro). Geralmente vamos confiar na strategy 1.
-
   return null;
+}
+
+/**
+ * Extrai shortcode de instagram_permalink_url.
+ * Aceita URLs tipo:
+ *   - https://www.instagram.com/p/DYX5UlomlS7/
+ *   - https://www.instagram.com/reel/DYX5UlomlS7/
+ *   - https://www.instagram.com/tv/DYX5UlomlS7/
+ */
+function extractIgShortcode(ad: RawAd): string | null {
+  const url = ad.creative?.instagram_permalink_url;
+  if (!url) return null;
+  const match = url.match(/\/(?:p|reel|tv|reels)\/([A-Za-z0-9_-]+)/);
+  return match?.[1] ?? null;
+}
+
+/** Versão exportada do helper de shortcode pra reuso em outros lugares. */
+export function shortcodeFromPermalink(permalink: string | null | undefined): string | null {
+  if (!permalink) return null;
+  const match = permalink.match(/\/(?:p|reel|tv|reels)\/([A-Za-z0-9_-]+)/);
+  return match?.[1] ?? null;
 }
 
 function sumAction(
@@ -188,7 +203,8 @@ export async function listAdsWithInsights(
         ad_id: ad.id,
         ad_name: ad.name,
         status: ad.effective_status,
-        ig_media_id: extractIgMediaId(ad),
+        ig_media_id: extractIgMediaIdDirect(ad),
+        ig_shortcode: extractIgShortcode(ad),
         paid_reach: ins?.reach ? parseInt(ins.reach, 10) : 0,
         paid_impressions: ins?.impressions ? parseInt(ins.impressions, 10) : 0,
         paid_clicks: ins?.clicks ? parseInt(ins.clicks, 10) : 0,
@@ -226,16 +242,27 @@ export type PaidAggregateByMedia = {
 
 /**
  * Agrega ads (vários ads podem promover a mesma mídia) por ig_media_id.
- * Ignora ads sem media_id identificável.
+ *
+ * Estratégia 2-tier:
+ * 1. Se ad tem ig_media_id direto (boosted post) → usa ele
+ * 2. Senão, tenta resolver via shortcode → mapa shortcode→ig_media_id passado
+ *    (construído a partir das medias já no banco, com seus permalinks)
+ *
+ * Ads sem nenhuma dessas informações são ignorados.
  */
 export function aggregateAdsByMedia(
   ads: AdWithInsights[],
+  shortcodeToMediaId?: Map<string, string>,
 ): PaidAggregateByMedia[] {
   const map = new Map<string, PaidAggregateByMedia>();
   for (const ad of ads) {
-    if (!ad.ig_media_id) continue;
-    const cur = map.get(ad.ig_media_id) ?? {
-      ig_media_id: ad.ig_media_id,
+    let mediaId = ad.ig_media_id;
+    if (!mediaId && ad.ig_shortcode && shortcodeToMediaId) {
+      mediaId = shortcodeToMediaId.get(ad.ig_shortcode) ?? null;
+    }
+    if (!mediaId) continue;
+    const cur = map.get(mediaId) ?? {
+      ig_media_id: mediaId,
       paid_reach: 0,
       paid_impressions: 0,
       paid_clicks: 0,
@@ -251,7 +278,7 @@ export function aggregateAdsByMedia(
     cur.paid_video_views += ad.paid_video_views;
     cur.paid_engagement += ad.paid_engagement;
     cur.ad_count += 1;
-    map.set(ad.ig_media_id, cur);
+    map.set(mediaId, cur);
   }
   return Array.from(map.values());
 }
