@@ -54,37 +54,89 @@ async function fetchPaginated<T>(initialUrl: string): Promise<T[]> {
 }
 
 /**
+ * Resultado detalhado pra debug: quais ad accounts vieram de onde.
+ */
+export type AdAccountDiscovery = {
+  accounts: FbAdAccount[];
+  source_counts: {
+    direct: number; // /me/adaccounts
+    assigned: number; // /me/assigned_ad_accounts
+    business_owned: number; // /{biz}/owned_ad_accounts somados
+    business_client: number; // /{biz}/client_ad_accounts somados
+    businesses_seen: number;
+  };
+  errors: string[];
+};
+
+/**
  * Lista TODAS as ad accounts acessíveis ao usuário, incluindo:
  * - Ad accounts que o user é dono direto (`/me/adaccounts`)
+ * - Ad accounts atribuídas ao user via Business Manager (`/me/assigned_ad_accounts`)
  * - Ad accounts de Business Managers que o user gerencia
  *   - Owned (do próprio business): `/{biz_id}/owned_ad_accounts`
  *   - Client (clientes do business, ex: agência atendendo cliente):
  *     `/{biz_id}/client_ad_accounts`
  *
- * Dedupe por id. Funciona tanto pra contas pessoais quanto pra ad accounts
- * de clientes gerenciados via Business Manager (caso de agência).
+ * Dedupe por id. Cobre cenários: contas pessoais, BM próprio,
+ * BM de cliente (agência), atribuição direta via System User/BM.
  */
-export async function listAdAccounts(
+export async function discoverAdAccounts(
   accessToken: string,
-): Promise<FbAdAccount[]> {
+): Promise<AdAccountDiscovery> {
   const fields = "id,name,currency,timezone_name,account_status";
   const out = new Map<string, FbAdAccount>();
+  const errors: string[] = [];
+  const counts = {
+    direct: 0,
+    assigned: 0,
+    business_owned: 0,
+    business_client: 0,
+    businesses_seen: 0,
+  };
 
-  // 1. Ad accounts próprias do user (direto)
-  try {
-    const direct = await fetchPaginated<FbAdAccount>(
-      `${GRAPH_BASE}/me/adaccounts?${new URLSearchParams({
-        fields,
-        limit: "100",
-        access_token: accessToken,
-      }).toString()}`,
-    );
-    for (const ad of direct) out.set(ad.id, ad);
-  } catch (err) {
-    console.warn("[listAdAccounts] /me/adaccounts falhou:", err);
+  function fetchInto(
+    initialUrl: string,
+    bucket: keyof typeof counts,
+    label: string,
+  ): Promise<void> {
+    return fetchPaginated<FbAdAccount>(initialUrl)
+      .then((arr) => {
+        for (const ad of arr) {
+          if (!out.has(ad.id)) {
+            out.set(ad.id, ad);
+          }
+        }
+        counts[bucket] += arr.length;
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`${label}: ${msg.slice(0, 150)}`);
+      });
   }
 
-  // 2. Businesses que o user gerencia → cada um pode ter ad accounts
+  // 1. /me/adaccounts (próprias diretas)
+  await fetchInto(
+    `${GRAPH_BASE}/me/adaccounts?${new URLSearchParams({
+      fields,
+      limit: "100",
+      access_token: accessToken,
+    }).toString()}`,
+    "direct",
+    "/me/adaccounts",
+  );
+
+  // 2. /me/assigned_ad_accounts (atribuídas via BM)
+  await fetchInto(
+    `${GRAPH_BASE}/me/assigned_ad_accounts?${new URLSearchParams({
+      fields,
+      limit: "100",
+      access_token: accessToken,
+    }).toString()}`,
+    "assigned",
+    "/me/assigned_ad_accounts",
+  );
+
+  // 3. /me/businesses → owned + client
   let businesses: Array<{ id: string; name?: string }> = [];
   try {
     businesses = await fetchPaginated<{ id: string; name?: string }>(
@@ -94,47 +146,46 @@ export async function listAdAccounts(
         access_token: accessToken,
       }).toString()}`,
     );
+    counts.businesses_seen = businesses.length;
   } catch (err) {
-    console.warn("[listAdAccounts] /me/businesses falhou:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    errors.push(`/me/businesses: ${msg.slice(0, 150)}`);
   }
 
   for (const biz of businesses) {
-    // 2a. Owned ad accounts (próprias do business)
-    try {
-      const owned = await fetchPaginated<FbAdAccount>(
-        `${GRAPH_BASE}/${biz.id}/owned_ad_accounts?${new URLSearchParams({
-          fields,
-          limit: "100",
-          access_token: accessToken,
-        }).toString()}`,
-      );
-      for (const ad of owned) out.set(ad.id, ad);
-    } catch (err) {
-      console.warn(
-        `[listAdAccounts] /${biz.id}/owned_ad_accounts falhou:`,
-        err,
-      );
-    }
-
-    // 2b. Client ad accounts (de clientes — agência atendendo)
-    try {
-      const client = await fetchPaginated<FbAdAccount>(
-        `${GRAPH_BASE}/${biz.id}/client_ad_accounts?${new URLSearchParams({
-          fields,
-          limit: "100",
-          access_token: accessToken,
-        }).toString()}`,
-      );
-      for (const ad of client) out.set(ad.id, ad);
-    } catch (err) {
-      console.warn(
-        `[listAdAccounts] /${biz.id}/client_ad_accounts falhou:`,
-        err,
-      );
-    }
+    await fetchInto(
+      `${GRAPH_BASE}/${biz.id}/owned_ad_accounts?${new URLSearchParams({
+        fields,
+        limit: "100",
+        access_token: accessToken,
+      }).toString()}`,
+      "business_owned",
+      `/${biz.id}/owned_ad_accounts`,
+    );
+    await fetchInto(
+      `${GRAPH_BASE}/${biz.id}/client_ad_accounts?${new URLSearchParams({
+        fields,
+        limit: "100",
+        access_token: accessToken,
+      }).toString()}`,
+      "business_client",
+      `/${biz.id}/client_ad_accounts`,
+    );
   }
 
-  return Array.from(out.values());
+  return {
+    accounts: Array.from(out.values()),
+    source_counts: counts,
+    errors,
+  };
+}
+
+/** Versão simplificada — retorna só a lista de accounts (compat com código existente). */
+export async function listAdAccounts(
+  accessToken: string,
+): Promise<FbAdAccount[]> {
+  const { accounts } = await discoverAdAccounts(accessToken);
+  return accounts;
 }
 
 // ----------------------------------------------------------------------------
