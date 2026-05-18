@@ -379,10 +379,12 @@ export type PaidAggregateByMedia = {
 /**
  * Agrega ads (vários ads podem promover a mesma mídia) por ig_media_id.
  *
- * Estratégia 2-tier:
- * 1. Se ad tem ig_media_id direto (boosted post) → usa ele
- * 2. Senão, tenta resolver via shortcode → mapa shortcode→ig_media_id passado
- *    (construído a partir das medias já no banco, com seus permalinks)
+ * Estratégia (em ordem de preferência):
+ * 1. **Shortcode via permalink** (mais confiável) — extrai shortcode do
+ *    `instagram_permalink_url` do ad e cruza com `media.permalink` no banco.
+ * 2. **ig_media_id direto** (fallback) — só pra casos raros sem permalink.
+ *    Pra ads de IG, o `object_story_id.last_part` é o post_id do FB shadow,
+ *    NÃO o ig_media_id real — então essa estratégia falha pra maioria.
  *
  * Ads sem nenhuma dessas informações são ignorados.
  */
@@ -392,10 +394,19 @@ export function aggregateAdsByMedia(
 ): PaidAggregateByMedia[] {
   const map = new Map<string, PaidAggregateByMedia>();
   for (const ad of ads) {
-    let mediaId = ad.ig_media_id;
-    if (!mediaId && ad.ig_shortcode && shortcodeToMediaId) {
+    let mediaId: string | null = null;
+
+    // 1. Shortcode primeiro (mais confiável)
+    if (ad.ig_shortcode && shortcodeToMediaId) {
       mediaId = shortcodeToMediaId.get(ad.ig_shortcode) ?? null;
     }
+
+    // 2. Fallback: ig_media_id direto (raramente bate pra ads de IG mas
+    //    pode bater pra ads onde object_story_id é o próprio ig_media_id)
+    if (!mediaId && ad.ig_media_id) {
+      mediaId = ad.ig_media_id;
+    }
+
     if (!mediaId) continue;
     const cur = map.get(mediaId) ?? {
       ig_media_id: mediaId,
