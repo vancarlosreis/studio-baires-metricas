@@ -8,11 +8,18 @@ import {
   Activity,
   TrendingUp,
   Heart,
+  Link as LinkIcon,
   type LucideIcon,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 
-export type KpiIconName = "users" | "eye" | "activity" | "trending-up" | "heart";
+export type KpiIconName =
+  | "users"
+  | "eye"
+  | "activity"
+  | "trending-up"
+  | "heart"
+  | "link";
 
 const ICONS: Record<KpiIconName, LucideIcon> = {
   users: Users,
@@ -20,6 +27,7 @@ const ICONS: Record<KpiIconName, LucideIcon> = {
   activity: Activity,
   "trending-up": TrendingUp,
   heart: Heart,
+  link: LinkIcon,
 };
 
 type Props = {
