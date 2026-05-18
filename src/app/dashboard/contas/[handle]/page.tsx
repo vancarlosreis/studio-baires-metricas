@@ -23,6 +23,11 @@ import {
 } from "@/lib/queries/aggregates";
 import { getPaidAggregatesForPeriod } from "@/lib/queries/paid";
 import { fetchAccountKpisForPeriod } from "@/lib/queries/account-kpis";
+
+// Sempre renderizar dinamicamente — os KPIs do topo chamam IG API com
+// since/until do período selecionado pelo usuário, então cache não vale.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { resolvePeriod, previousPeriod } from "@/lib/period";
 import { Sidebar } from "@/components/dashboard-dark/Sidebar";
 import { Topbar } from "@/components/dashboard-dark/Topbar";
