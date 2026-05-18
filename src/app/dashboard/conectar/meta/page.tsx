@@ -83,18 +83,13 @@ export default async function MetaSelectPage() {
             return (
               <label
                 key={p.ig_user_id}
-                className={`flex items-start gap-4 rounded-2xl border bg-paper p-4 transition-colors ${
-                  isDuplicate
-                    ? "cursor-not-allowed border-ink/5 opacity-60"
-                    : "cursor-pointer border-ink/10 hover:border-forest/40"
-                }`}
+                className="flex cursor-pointer items-start gap-4 rounded-2xl border border-ink/10 bg-paper p-4 transition-colors hover:border-forest/40"
               >
                 <input
                   type="checkbox"
                   name="page_ids"
                   value={p.page_id}
-                  defaultChecked={!isDuplicate}
-                  disabled={isDuplicate}
+                  defaultChecked={true}
                   className="mt-1 h-5 w-5 shrink-0 accent-forest"
                 />
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink text-cream">
@@ -136,8 +131,11 @@ export default async function MetaSelectPage() {
                   </div>
                 </div>
                 {isDuplicate && (
-                  <span className="shrink-0 rounded-full bg-ink/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-                    já conectada
+                  <span
+                    className="shrink-0 rounded-full bg-forest/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-forest"
+                    title="Re-importar atualiza o token de acesso (não duplica)"
+                  >
+                    atualizar token
                   </span>
                 )}
               </label>

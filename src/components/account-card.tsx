@@ -5,6 +5,7 @@ import {
   getAccountInitials,
   type IgAccountWithLatestSnapshot,
 } from "@/lib/queries/ig-accounts";
+import { DisconnectAccountButton } from "./disconnect-account-button";
 
 function formatNumber(n: number | null | undefined): string {
   if (n == null) return "—";
@@ -96,16 +97,22 @@ export function AccountCard({
         <span className="text-xs text-ink-soft">
           Sincronizado <span className="italic">{timeAgo(account.last_synced_at)}</span>
         </span>
-        <form action={syncAccountFormAction}>
-          <input type="hidden" name="igAccountId" value={account.id} />
-          <input type="hidden" name="returnTo" value="/dashboard" />
-          <button
-            type="submit"
-            className="text-xs font-semibold text-forest underline-offset-2 hover:underline"
-          >
-            Sincronizar agora ↻
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <DisconnectAccountButton
+            igAccountId={account.id}
+            igUsername={account.ig_username}
+          />
+          <form action={syncAccountFormAction}>
+            <input type="hidden" name="igAccountId" value={account.id} />
+            <input type="hidden" name="returnTo" value="/dashboard" />
+            <button
+              type="submit"
+              className="text-xs font-semibold text-forest underline-offset-2 hover:underline"
+            >
+              Sincronizar ↻
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
