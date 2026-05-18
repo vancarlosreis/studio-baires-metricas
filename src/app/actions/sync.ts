@@ -17,6 +17,11 @@ import {
   type AudienceType,
   type DemographicBreakdown,
 } from "@/lib/instagram/api";
+import {
+  listAdAccounts,
+  listAdsWithInsights,
+  aggregateAdsByMedia,
+} from "@/lib/instagram/marketing";
 import type { Database } from "@/lib/supabase/database.types";
 
 type MediaKind = Database["public"]["Enums"]["media_kind"];
@@ -434,9 +439,163 @@ export async function syncAccountMedia(
   }
 }
 
+// ============================================================================
+// Sync de tráfego pago (Marketing API)
+// ============================================================================
+
+const PAID_LOOKBACK_DAYS = 90;
+
+export type PaidSyncResult =
+  | { ok: true; igAccountId: string; mediaCount: number; warnings: string[] }
+  | { ok: false; error: string };
+
 /**
- * Sync completo: perfil + mídia. Chamado quando usuário clica em
- * "Sincronizar agora".
+ * Sync tráfego pago de uma conta IG.
+ *
+ * 1. Descobre ad_accounts vinculadas ao user via /me/adaccounts
+ * 2. Pra cada ad account: lista ads ativos/passados dos últimos N dias
+ *    com insights agregados
+ * 3. Agrega por ig_media_id (vários ads podem promover a mesma mídia)
+ * 4. Pra cada mídia já sincronizada no banco, insere snapshot em
+ *    media_paid_insights
+ *
+ * Requer escopo ads_read no token. Conta IG conectada antes desse escopo
+ * existir precisa re-conectar via Facebook.
+ */
+export async function syncPaidInsights(
+  igAccountId: string,
+): Promise<PaidSyncResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Não autenticado." };
+
+  const { data: account, error: fetchErr } = await supabase
+    .from("ig_accounts")
+    .select("*")
+    .eq("id", igAccountId)
+    .single();
+
+  if (fetchErr || !account) return { ok: false, error: "Conta não encontrada." };
+
+  const warnings: string[] = [];
+
+  try {
+    const accessToken = decryptAccountToken(account.access_token_encrypted);
+
+    // 1. Lista ad accounts
+    const adAccounts = await listAdAccounts(accessToken);
+    if (adAccounts.length === 0) {
+      return {
+        ok: true,
+        igAccountId,
+        mediaCount: 0,
+        warnings: [
+          "Nenhuma ad account encontrada — usuário não gerencia ads ou falta escopo ads_read (re-conectar via Facebook).",
+        ],
+      };
+    }
+
+    // Upsert ad_accounts no banco
+    for (const ad of adAccounts) {
+      await supabase.from("fb_ad_accounts").upsert(
+        {
+          user_id: user.id,
+          ig_account_id: account.id,
+          fb_ad_account_id: ad.id,
+          name: ad.name ?? null,
+          currency: ad.currency ?? null,
+          timezone_name: ad.timezone_name ?? null,
+          account_status: ad.account_status ?? null,
+          is_active: ad.account_status === 1,
+          last_synced_at: new Date().toISOString(),
+          raw_payload: ad as unknown as never,
+        },
+        { onConflict: "ig_account_id,fb_ad_account_id" },
+      );
+    }
+
+    // 2. Pra cada ad account, lista ads do período
+    const until = new Date();
+    const since = new Date(until.getTime() - PAID_LOOKBACK_DAYS * 86400_000);
+    const sinceStr = since.toISOString().slice(0, 10);
+    const untilStr = until.toISOString().slice(0, 10);
+
+    const allAds = [] as Awaited<ReturnType<typeof listAdsWithInsights>>;
+    for (const adAccount of adAccounts) {
+      try {
+        const ads = await listAdsWithInsights(
+          accessToken,
+          adAccount.id,
+          sinceStr,
+          untilStr,
+        );
+        allAds.push(...ads);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "erro desconhecido";
+        warnings.push(`ad account ${adAccount.id}: ${msg}`);
+      }
+    }
+
+    if (allAds.length === 0) {
+      return { ok: true, igAccountId, mediaCount: 0, warnings };
+    }
+
+    // 3. Agrega por ig_media_id
+    const aggregates = aggregateAdsByMedia(allAds);
+    const adsWithoutMedia = allAds.filter((a) => !a.ig_media_id).length;
+    if (adsWithoutMedia > 0) {
+      warnings.push(
+        `${adsWithoutMedia} ads sem mídia IG identificável (dark posts ou criativos novos não vinculados).`,
+      );
+    }
+
+    // 4. Pra cada agregado: encontrar media UUID interno via ig_media_id
+    //    e inserir snapshot
+    let saved = 0;
+    for (const agg of aggregates) {
+      const { data: mediaRow } = await supabase
+        .from("media")
+        .select("id")
+        .eq("ig_account_id", account.id)
+        .eq("ig_media_id", agg.ig_media_id)
+        .maybeSingle();
+
+      if (!mediaRow) continue; // mídia ainda não sincronizada via syncAccountMedia
+
+      const { error: insertErr } = await supabase
+        .from("media_paid_insights")
+        .insert({
+          media_id: mediaRow.id,
+          paid_reach: agg.paid_reach,
+          paid_impressions: agg.paid_impressions,
+          paid_clicks: agg.paid_clicks,
+          paid_spend: agg.paid_spend,
+          paid_video_views: agg.paid_video_views,
+          paid_engagement: agg.paid_engagement,
+          ad_count: agg.ad_count,
+          raw_payload: { aggregate: agg } as unknown as never,
+        });
+
+      if (insertErr) {
+        warnings.push(`media ${agg.ig_media_id}: ${insertErr.message}`);
+      } else {
+        saved += 1;
+      }
+    }
+
+    return { ok: true, igAccountId, mediaCount: saved, warnings };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido";
+    console.error("[syncPaidInsights] erro:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Sync completo: perfil + mídia + tráfego pago. Chamado quando usuário
+ * clica em "Sincronizar agora".
  */
 export async function syncAccountFull(igAccountId: string): Promise<{
   ok: boolean;
@@ -454,9 +613,19 @@ export async function syncAccountFull(igAccountId: string): Promise<{
     };
   }
 
+  // Paid insights — tolerante a falhas (ex: token sem ads_read).
+  // Não bloqueia o sync se falhar — só vira warning.
+  const paid = await syncPaidInsights(igAccountId);
+  const paidWarnings: string[] = [];
+  if (!paid.ok) {
+    paidWarnings.push(`Tráfego pago: ${paid.error}`);
+  } else {
+    paidWarnings.push(...paid.warnings);
+  }
+
   return {
     ok: true,
-    warnings: [...profile.warnings, ...media.warnings],
+    warnings: [...profile.warnings, ...media.warnings, ...paidWarnings],
   };
 }
 

@@ -38,6 +38,18 @@ type Props = {
   accent: "purple" | "pink" | "blue" | "cyan";
   sparkline?: number[] | null;
   hint?: string;
+  /**
+   * Quando informado, mostra uma barrinha embaixo do valor com a divisão
+   * orgânico vs pago. Total deve ser >= paid (paid é subconjunto do total).
+   */
+  paid?: {
+    /** Valor pago (subconjunto do total exibido em `value`) */
+    value: number;
+    /** Total numérico — usado pra calcular % */
+    total: number;
+    /** Label do número pago — ex: "pago" ou "ads" */
+    label?: string;
+  } | null;
 };
 
 const accentMap = {
@@ -47,7 +59,7 @@ const accentMap = {
   cyan: { ring: "ring-neon-cyan/40", glow: "from-neon-cyan/30", stroke: "#22D3EE" },
 };
 
-export function KpiCard({ label, value, trend, icon, accent, sparkline, hint }: Props) {
+export function KpiCard({ label, value, trend, icon, accent, sparkline, hint, paid }: Props) {
   const Icon = ICONS[icon];
   const a = accentMap[accent];
   const data = (sparkline ?? []).map((v, i) => ({ i, v }));
@@ -85,6 +97,41 @@ export function KpiCard({ label, value, trend, icon, accent, sparkline, hint }: 
         {value}
       </p>
       {hint && <p className="relative mt-1 text-xs text-white/50">{hint}</p>}
+
+      {paid && paid.total > 0 && (
+        <div className="relative mt-3">
+          {(() => {
+            const paidPct = Math.min(100, (paid.value / paid.total) * 100);
+            const organicPct = 100 - paidPct;
+            return (
+              <>
+                <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider">
+                  <span className="text-white/60">
+                    Orgânico{" "}
+                    <span className="text-white">{organicPct.toFixed(0)}%</span>
+                  </span>
+                  <span className="text-white/60">
+                    {paid.label ?? "Pago"}{" "}
+                    <span className="text-neon-pink">
+                      {paidPct.toFixed(0)}%
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className="h-full bg-neon-blue"
+                    style={{ width: `${organicPct}%` }}
+                  />
+                  <div
+                    className="h-full bg-neon-pink"
+                    style={{ width: `${paidPct}%` }}
+                  />
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {data.length > 1 && (
         <div className="relative mt-3 h-10">

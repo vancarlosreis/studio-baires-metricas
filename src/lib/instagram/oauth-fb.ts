@@ -25,13 +25,15 @@ const AUTH_URL = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`;
 const TOKEN_URL = `https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token`;
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
-// Escopos pra listar Pages + acessar IG insights via Business Manager.
-// `business_management` é o que exige App Review mais rigoroso pra produção.
+// Escopos pra listar Pages + acessar IG insights via Business Manager + ads.
+// `business_management` e `ads_read` exigem App Review mais rigoroso pra
+// produção pública. Em modo Dev funciona com Testers sem App Review.
 const SCOPES = [
   "pages_show_list",
   "business_management",
   "instagram_basic",
   "instagram_manage_insights",
+  "ads_read", // tráfego pago: ler campaigns/adsets/ads do Marketing API
 ].join(",");
 
 function getAppId(): string {

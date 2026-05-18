@@ -21,6 +21,7 @@ import {
   getMediaByDayOfWeek,
   getSnapshotNearDate,
 } from "@/lib/queries/aggregates";
+import { getPaidAggregatesForPeriod } from "@/lib/queries/paid";
 import { resolvePeriod, previousPeriod } from "@/lib/period";
 import { Sidebar } from "@/components/dashboard-dark/Sidebar";
 import { Topbar } from "@/components/dashboard-dark/Topbar";
@@ -140,6 +141,8 @@ export default async function AccountDetailDarkPage({
     reelsAggPrev,
     dayOfWeekStats,
     snapshotBeforePeriod,
+    paidFeed,
+    paidReels,
   ] = await Promise.all([
     listAccountSnapshots(supabase, account.id, 365),
     listMediaWithInsights(supabase, account.id, { limit: 100, productType }),
@@ -151,6 +154,8 @@ export default async function AccountDetailDarkPage({
     getMediaAggregates(supabase, account.id, "REELS", previous.start, previous.end),
     getMediaByDayOfWeek(supabase, account.id, period.start, period.end),
     getSnapshotNearDate(supabase, account.id, previous.end),
+    getPaidAggregatesForPeriod(supabase, account.id, period.start, period.end, "FEED"),
+    getPaidAggregatesForPeriod(supabase, account.id, period.start, period.end, "REELS"),
   ]);
 
   const media = allMedia.filter((m) => {
@@ -423,12 +428,14 @@ export default async function AccountDetailDarkPage({
             previous={feedAggPrev.reach}
             start={period.start}
             end={period.end}
+            paid={{ value: paidFeed.reach, total: feedAggCurrent.reach, label: "Ads" }}
           />
           <KpiCompareCard
               compare={compare}
             label="Interações"
             value={feedAggCurrent.total_interactions}
             previous={feedAggPrev.total_interactions}
+            paid={{ value: paidFeed.engagement, total: feedAggCurrent.total_interactions, label: "Ads" }}
           />
           <KpiCompareCard
               compare={compare}
@@ -461,6 +468,7 @@ export default async function AccountDetailDarkPage({
             label="Visualizações do feed"
             value={feedAggCurrent.views}
             previous={feedAggPrev.views}
+            paid={{ value: paidFeed.video_views, total: feedAggCurrent.views, label: "Ads" }}
           />
         </section>
 
@@ -480,18 +488,21 @@ export default async function AccountDetailDarkPage({
             previous={reelsAggPrev.reach}
             start={period.start}
             end={period.end}
+            paid={{ value: paidReels.reach, total: reelsAggCurrent.reach, label: "Ads" }}
           />
           <KpiCompareCard
               compare={compare}
             label="Interações nos reels"
             value={reelsAggCurrent.total_interactions}
             previous={reelsAggPrev.total_interactions}
+            paid={{ value: paidReels.engagement, total: reelsAggCurrent.total_interactions, label: "Ads" }}
           />
           <KpiCompareCard
               compare={compare}
             label="Visualizações dos reels"
             value={reelsAggCurrent.views}
             previous={reelsAggPrev.views}
+            paid={{ value: paidReels.video_views, total: reelsAggCurrent.views, label: "Ads" }}
           />
         </section>
 
