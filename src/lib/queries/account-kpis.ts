@@ -70,8 +70,15 @@ export async function fetchAccountKpisForPeriod(
   }
 
   const ctx: GraphContext = contextForAccount(account);
-  const since = Math.floor(start.getTime() / 1000);
-  const until = Math.floor(end.getTime() / 1000);
+  // Meta API limita o range a 30 dias EXATOS (2592000s) entre since/until.
+  // resolvePeriod("30d") dá 30 dias + 23h59min (startOfDay zera horas,
+  // endOfDay vai até 23:59:59) ≈ 31 dias, que dispara erro #100.
+  // Capeia em 30d ajustando o since pra trás (mantém o final do período).
+  const MAX_RANGE_SEC = 30 * 86400;
+  const untilRaw = Math.floor(end.getTime() / 1000);
+  const sinceRaw = Math.floor(start.getTime() / 1000);
+  const until = untilRaw;
+  const since = Math.max(sinceRaw, untilRaw - MAX_RANGE_SEC);
 
   // 4 chamadas em paralelo — 3 com breakdown e 1 sem (profile_links_taps)
   const [reachBd, viewsBd, interactionsBd, linkTapsInsights] = await Promise.all(
