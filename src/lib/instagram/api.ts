@@ -371,10 +371,20 @@ export async function getAccountMetricWithProductTypeBreakdown(
     const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`, {
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => "(failed to read body)");
+      console.error(
+        `[breakdown] ${metric} HTTP ${res.status} from ${apiBase}/${accountPath}/insights:`,
+        text.slice(0, 500),
+      );
+      return null;
+    }
     const json = await res.json();
     const item = json?.data?.[0];
-    if (!item) return null;
+    if (!item) {
+      console.warn(`[breakdown] ${metric} no data[0]:`, JSON.stringify(json).slice(0, 300));
+      return null;
+    }
 
     const total = item.total_value?.value ?? 0;
     const results = item.total_value?.breakdowns?.[0]?.results ?? [];
@@ -395,7 +405,8 @@ export async function getAccountMetricWithProductTypeBreakdown(
       paid,
       organic,
     };
-  } catch {
+  } catch (err) {
+    console.error(`[breakdown] ${metric} threw:`, err);
     return null;
   }
 }
