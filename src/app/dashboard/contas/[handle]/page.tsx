@@ -277,6 +277,15 @@ export default async function AccountDetailDarkPage({
             icon="eye"
             accent="blue"
             sparkline={reachSpark}
+            paid={
+              latest?.paid_reach != null && latest?.reach
+                ? {
+                    value: latest.paid_reach,
+                    total: latest.reach,
+                    label: "Ads",
+                  }
+                : null
+            }
           />
           <KpiCard
             label="Interações"
@@ -285,6 +294,15 @@ export default async function AccountDetailDarkPage({
             icon="activity"
             accent="pink"
             sparkline={interactionsSpark}
+            paid={
+              latest?.paid_total_interactions != null && latest?.total_interactions
+                ? {
+                    value: latest.paid_total_interactions,
+                    total: latest.total_interactions,
+                    label: "Ads",
+                  }
+                : null
+            }
           />
           <KpiCard
             label="Visualizações"
@@ -293,6 +311,15 @@ export default async function AccountDetailDarkPage({
             icon="trending-up"
             accent="cyan"
             sparkline={viewsSpark}
+            paid={
+              latest?.paid_views != null && latest?.views
+                ? {
+                    value: latest.paid_views,
+                    total: latest.views,
+                    label: "Ads",
+                  }
+                : null
+            }
           />
           <KpiCard
             label="Toques no link da bio"
