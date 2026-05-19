@@ -93,8 +93,10 @@ export async function getStoriesAggregates(
     agg.navigation += s.navigation ?? 0;
     agg.profile_activity += s.profile_activity ?? 0;
 
-    if (s.views && s.views > 0 && s.exits != null) {
-      retentionSum += 1 - s.exits / s.views;
+    // Retenção (fórmula Reportei): (reach - exits - swipe_forward) / reach
+    if (s.reach && s.reach > 0) {
+      const lost = (s.exits ?? 0) + (s.swipe_forward ?? 0);
+      retentionSum += Math.max(0, (s.reach - lost) / s.reach);
       retentionCount += 1;
     }
   }

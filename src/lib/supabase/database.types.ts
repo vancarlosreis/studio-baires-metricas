@@ -544,6 +544,7 @@ export type Database = {
           permalink: string | null
           posted_at: string
           profile_activity: number | null
+          profile_visits: number | null
           raw_payload: Json | null
           reach: number | null
           replies: number | null
@@ -570,6 +571,7 @@ export type Database = {
           permalink?: string | null
           posted_at: string
           profile_activity?: number | null
+          profile_visits?: number | null
           raw_payload?: Json | null
           reach?: number | null
           replies?: number | null
@@ -596,6 +598,7 @@ export type Database = {
           permalink?: string | null
           posted_at?: string
           profile_activity?: number | null
+          profile_visits?: number | null
           raw_payload?: Json | null
           reach?: number | null
           replies?: number | null

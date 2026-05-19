@@ -621,6 +621,7 @@ const STORY_METRICS = [
   "shares",
   "navigation",
   "profile_activity",
+  "profile_visits",
 ];
 
 // Pra REELS, tentamos métricas extras separadamente — se falhar não bloqueia
