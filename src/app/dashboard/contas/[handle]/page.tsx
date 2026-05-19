@@ -244,7 +244,9 @@ export default async function AccountDetailDarkPage({
   const followersSpark = chartSnapshots.slice(-12).map((s) => s.followers_count ?? 0);
   const interactionsSpark = chartSnapshots.slice(-12).map((s) => s.total_interactions ?? 0);
   const viewsSpark = chartSnapshots.slice(-12).map((s) => s.views ?? 0);
-  const linkTapsSpark = chartSnapshots.slice(-12).map((s) => s.profile_links_taps ?? 0);
+  const linkTapsSpark = chartSnapshots
+    .slice(-12)
+    .map((s) => s.website_clicks ?? s.profile_links_taps ?? 0);
 
   function trend(curr?: number | null, p?: number | null): { delta: number; direction: "up" | "down" } | null {
     if (curr == null || p == null || p === 0) return null;
@@ -348,17 +350,28 @@ export default async function AccountDetailDarkPage({
                 : null
             }
           />
+          {/*
+            Toques no link da bio = website_clicks (link efetivo).
+            profile_links_taps inclui só CTA business (Ligar/Email/Endereço/SMS),
+            que normalmente vem zero pra contas IG comuns. Fallback pra
+            profile_links_taps mantém retrocompat caso a Meta volte a popular.
+          */}
           <KpiCard
             label="Toques no link da bio"
-            value={fmtCompact(kpisCurrentPeriod.profile_links_taps)}
+            value={fmtCompact(
+              kpisCurrentPeriod.website_clicks ??
+                kpisCurrentPeriod.profile_links_taps,
+            )}
             trend={trend(
-              kpisCurrentPeriod.profile_links_taps,
-              kpisPreviousPeriod.profile_links_taps,
+              kpisCurrentPeriod.website_clicks ??
+                kpisCurrentPeriod.profile_links_taps,
+              kpisPreviousPeriod.website_clicks ??
+                kpisPreviousPeriod.profile_links_taps,
             )}
             icon="link"
             accent="purple"
             sparkline={linkTapsSpark}
-            hint="profile_links_taps · IG v22+"
+            hint="website_clicks · IG Insights"
           />
         </section>
 
