@@ -118,14 +118,27 @@ async function handleMessage(msg: JsonRpcRequest): Promise<JsonRpcResponse | nul
   }
 }
 
+function baseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
+    "https://studio-baires-metricas.vercel.app"
+  ).replace(/\/$/, "");
+}
+
 export async function POST(request: NextRequest) {
-  const auth = checkBearer(request.headers.get("authorization"));
+  const auth = await checkBearer(request.headers.get("authorization"));
   if (!auth.ok) {
+    // Header WWW-Authenticate aponta pro Authorization Server (RFC 9728)
+    // pra que clientes MCP saibam onde fazer OAuth.
+    const resourceMetadata = `${baseUrl()}/.well-known/oauth-protected-resource`;
     return NextResponse.json(
       { error: auth.reason },
       {
         status: auth.status,
-        headers: { "WWW-Authenticate": 'Bearer realm="mcp"' },
+        headers: {
+          "WWW-Authenticate": `Bearer realm="mcp", resource_metadata="${resourceMetadata}"`,
+        },
       },
     );
   }

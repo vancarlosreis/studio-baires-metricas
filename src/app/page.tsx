@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/login-form";
 
-type SearchParams = Promise<{ auth_error?: string }>;
+type SearchParams = Promise<{ auth_error?: string; next?: string }>;
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   email_not_allowed: "Este e-mail não está autorizado a acessar o sistema.",
@@ -31,6 +31,11 @@ export default async function Home({
   const authErrorMsg = sp.auth_error
     ? (AUTH_ERROR_MESSAGES[sp.auth_error] ?? `Erro: ${sp.auth_error}`)
     : null;
+  // Sanitiza next (só paths internos) pra evitar open redirect.
+  const next =
+    sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
+      ? sp.next
+      : undefined;
 
   return (
     <div className="bg-paper-grid relative min-h-screen flex-1 overflow-hidden">
@@ -74,7 +79,7 @@ export default async function Home({
               <p className="text-sm font-semibold text-burgundy">{authErrorMsg}</p>
             </div>
           )}
-          <LoginForm />
+          <LoginForm next={next} />
         </section>
       </main>
 

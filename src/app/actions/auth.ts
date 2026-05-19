@@ -14,6 +14,14 @@ const NOT_CONFIGURED =
 const EMAIL_NOT_ALLOWED =
   "Este e-mail não está autorizado a acessar o sistema.";
 
+/** Aceita só paths internos (começa com /) pra evitar open redirect. */
+function sanitizeNext(raw: string | null | undefined): string {
+  if (!raw) return "/dashboard";
+  if (typeof raw !== "string") return "/dashboard";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 export async function signInWithMagicLink(
   _prev: AuthState,
   formData: FormData,
@@ -26,6 +34,8 @@ export async function signInWithMagicLink(
   // Bloqueia ANTES de chamar Supabase pra evitar até a tentativa de envio
   if (!isAllowedEmail(email)) return { error: EMAIL_NOT_ALLOWED };
 
+  const next = sanitizeNext(String(formData.get("next") ?? ""));
+
   const supabase = await createClient();
   const headersList = await headers();
   const origin =
@@ -35,7 +45,7 @@ export async function signInWithMagicLink(
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 
@@ -43,10 +53,14 @@ export async function signInWithMagicLink(
   return { sent: true };
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData?: FormData) {
   if (!isSupabaseConfigured()) {
     throw new Error(NOT_CONFIGURED);
   }
+  const next = sanitizeNext(
+    formData ? String(formData.get("next") ?? "") : null,
+  );
+
   const supabase = await createClient();
   const headersList = await headers();
   const origin =
@@ -56,7 +70,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 

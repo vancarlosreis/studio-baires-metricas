@@ -1,41 +1,49 @@
 /**
- * Bearer token fixo pra autenticar requests MCP.
+ * Auth do endpoint MCP. Aceita dois modos:
  *
- * Configure MCP_BEARER_TOKEN nas envs do Vercel (e .env.local local). Gere
- * com `openssl rand -hex 32`. Nunca commite o token.
+ * 1. OAuth access_token: validado contra a tabela oauth_access_tokens.
+ *    É o caminho usado pelo Claude.ai (Connectors) após o fluxo de
+ *    /oauth/authorize + /oauth/token.
+ *
+ * 2. Bearer fixo (MCP_BEARER_TOKEN): fallback pra uso interno / CI.
+ *    Configure no Vercel env vars.
  */
+import { validateAccessToken, type ValidAccessToken } from "@/lib/oauth/tokens";
 
 export type AuthCheck =
-  | { ok: true }
+  | { ok: true; user?: ValidAccessToken | null }
   | { ok: false; status: 401 | 500; reason: string };
 
-export function checkBearer(authHeader: string | null): AuthCheck {
-  const expected = process.env.MCP_BEARER_TOKEN;
-  if (!expected) {
-    return {
-      ok: false,
-      status: 500,
-      reason: "MCP_BEARER_TOKEN não definido no servidor",
-    };
-  }
-  if (!authHeader) {
-    return { ok: false, status: 401, reason: "missing Authorization header" };
-  }
+function extractBearer(authHeader: string | null): string | null {
+  if (!authHeader) return null;
   const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-  if (!match) {
-    return { ok: false, status: 401, reason: "expected 'Bearer <token>'" };
-  }
-  const provided = match[1].trim();
-  // Comparação em tempo constante pra evitar timing attack (mesmo com Bearer
-  // estático o overhead é trivial).
-  if (provided.length !== expected.length) {
-    return { ok: false, status: 401, reason: "token inválido" };
-  }
+  return match ? match[1].trim() : null;
+}
+
+function constantTimeEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
   let diff = 0;
-  for (let i = 0; i < provided.length; i++) {
-    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export async function checkBearer(authHeader: string | null): Promise<AuthCheck> {
+  const token = extractBearer(authHeader);
+  if (!token) {
+    return { ok: false, status: 401, reason: "missing or malformed Authorization header" };
   }
-  return diff === 0
-    ? { ok: true }
-    : { ok: false, status: 401, reason: "token inválido" };
+
+  // 1. Tenta como OAuth access_token
+  const oauthUser = await validateAccessToken(token);
+  if (oauthUser) {
+    return { ok: true, user: oauthUser };
+  }
+
+  // 2. Fallback pra Bearer fixo (uso interno)
+  const fixed = process.env.MCP_BEARER_TOKEN;
+  if (fixed && constantTimeEq(token, fixed)) {
+    return { ok: true, user: null };
+  }
+
+  return { ok: false, status: 401, reason: "token inválido" };
 }

@@ -32,7 +32,7 @@ function GoogleIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(
     signInWithMagicLink,
     initialState,
@@ -62,6 +62,7 @@ export function LoginForm() {
   return (
     <div className="w-full space-y-5">
       <form action={formAction} className="space-y-4">
+        {next && <input type="hidden" name="next" value={next} />}
         <div className="space-y-2">
           <label
             htmlFor="email"
@@ -106,6 +107,7 @@ export function LoginForm() {
       </div>
 
       <form action={signInWithGoogle}>
+        {next && <input type="hidden" name="next" value={next} />}
         <button
           type="submit"
           className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-ink/15 bg-paper px-6 text-base font-semibold text-ink transition-colors hover:border-ink/40"
