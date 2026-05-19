@@ -770,6 +770,7 @@ export async function syncStories(
           navigation: findMetric(insights, "navigation"),
           swipe_forward: navigation?.swipe_forward ?? null,
           profile_activity: findMetric(insights, "profile_activity"),
+          profile_visits: findMetric(insights, "profile_visits"),
           raw_payload: {
             story,
             insights,

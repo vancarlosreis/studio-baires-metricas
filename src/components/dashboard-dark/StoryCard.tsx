@@ -34,18 +34,26 @@ function postedLabel(iso: string): string {
 }
 
 /**
- * Retenção do story = 1 - (exits / views).
- * Mostra que % do público viu até o fim em vez de sair antes.
+ * Retenção do story = (reach - exits - swipe_forward) / reach.
+ *
+ * Mesma fórmula do Reportei: do total que viu (reach), quem NÃO saiu (exits)
+ * E NÃO pulou pro próximo perfil (swipe_forward) = realmente terminou.
+ * Usar `views` em vez de `reach` infla pq views conta replays.
  */
-function retention(views: number | null, exits: number | null): number | null {
-  if (!views || views <= 0 || exits == null) return null;
-  return 1 - exits / views;
+function retention(
+  reach: number | null,
+  exits: number | null,
+  swipeForward: number | null,
+): number | null {
+  if (!reach || reach <= 0) return null;
+  const lost = (exits ?? 0) + (swipeForward ?? 0);
+  return Math.max(0, (reach - lost) / reach);
 }
 
 export function StoryCard({ story }: { story: StoryRow }) {
   const thumb = story.thumbnail_url ?? story.media_url ?? null;
   const isVideo = story.media_type === "VIDEO";
-  const ret = retention(story.views, story.exits);
+  const ret = retention(story.reach, story.exits, story.swipe_forward);
 
   return (
     <article className="dark-card flex flex-col overflow-hidden">
@@ -82,7 +90,7 @@ export function StoryCard({ story }: { story: StoryRow }) {
         <Metric icon={<Eye size={12} className="text-neon-blue" />} label="Visualizações" value={fmt(story.views)} />
         <Metric icon={<Users size={12} className="text-neon-purple" />} label="Alcance" value={fmt(story.reach)} />
         <Metric icon={<Activity size={12} className="text-neon-pink" />} label="Interações" value={fmt(story.total_interactions)} />
-        <Metric icon={<UserCircle2 size={12} className="text-neon-cyan" />} label="Visitas ao perfil" value={fmt(story.profile_activity)} />
+        <Metric icon={<UserCircle2 size={12} className="text-neon-cyan" />} label="Visitas ao perfil" value={fmt(story.profile_visits ?? story.profile_activity)} />
         <Metric icon={<MessageCircle size={12} />} label="Respostas" value={fmt(story.replies)} />
         <Metric icon={<Share2 size={12} />} label="Compartilhamentos" value={fmt(story.shares)} />
         <Metric icon={<ChevronRight size={12} />} label="Avançar" value={fmt(story.taps_forward)} />
