@@ -428,6 +428,7 @@ export async function syncAccountMedia(
         comments: findMetric(insights, "comments"),
         saves: findMetric(insights, "saved"), // API name = "saved"
         shares: findMetric(insights, "shares"),
+        reposts: findMetric(insights, "reposts"),
         reach: findMetric(insights, "reach"),
         impressions: findMetric(insights, "impressions"),
         plays: findMetric(insights, "plays"),

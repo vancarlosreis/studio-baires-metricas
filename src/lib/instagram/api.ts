@@ -631,7 +631,8 @@ const REELS_OPTIONAL_METRICS = ["plays"];
 // Métricas opcionais pra qualquer mídia (FEED + REELS). Algumas mídias
 // antigas ou de certos tipos podem não ter, então vai em batch isolado.
 // `views` é o substituto unificado v22+ de impressions/plays.
-const MEDIA_OPTIONAL_METRICS = ["views", "profile_visits", "follows"];
+// `reposts` é métrica nova v23+ (feature de Repost nativo do IG).
+const MEDIA_OPTIONAL_METRICS = ["views", "profile_visits", "follows", "reposts"];
 
 async function fetchInsightsBatch(
   accessToken: string,

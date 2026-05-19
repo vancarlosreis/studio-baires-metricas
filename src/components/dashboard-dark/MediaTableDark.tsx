@@ -45,6 +45,7 @@ export type MediaSortKey =
   | "comments"
   | "saves"
   | "shares"
+  | "reposts"
   | "profile_visits"
   | "follows"
   | "posted_at";
@@ -72,6 +73,8 @@ function getMetric(m: MediaWithLatestInsight, key: MediaSortKey): number {
       return i?.saves ?? 0;
     case "shares":
       return i?.shares ?? 0;
+    case "reposts":
+      return i?.reposts ?? 0;
     case "profile_visits":
       return i?.profile_visits ?? 0;
     case "follows":
@@ -101,6 +104,7 @@ const COLUMNS: ColumnDef[] = [
   { key: "comments", label: "Comentários", align: "right", sortable: true },
   { key: "saves", label: "Salvo", align: "right", sortable: true },
   { key: "shares", label: "Compart.", align: "right", sortable: true },
+  { key: "reposts", label: "Repost", align: "right", sortable: true },
   { key: "profile_visits", label: "Visitas perfil", align: "right", sortable: true },
   { key: "follows", label: "Novos seguidores", align: "right", sortable: true },
   { key: "posted_at", label: "Criado em", align: "right", sortable: true },
@@ -263,6 +267,7 @@ export function MediaTableDark({
                 <NumCell value={i?.comments} highlight={sort === "comments"} />
                 <NumCell value={i?.saves} highlight={sort === "saves"} />
                 <NumCell value={i?.shares} highlight={sort === "shares"} />
+                <NumCell value={i?.reposts} highlight={sort === "reposts"} />
                 <NumCell
                   value={i?.profile_visits}
                   highlight={sort === "profile_visits"}
