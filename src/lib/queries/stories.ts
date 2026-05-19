@@ -51,6 +51,7 @@ export async function listStoriesForPeriod(
     .from("stories")
     .select("*")
     .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null)
     .gte("posted_at", start.toISOString())
     .lte("posted_at", end.toISOString())
     .order("posted_at", { ascending: false })

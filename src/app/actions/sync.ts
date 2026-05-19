@@ -358,6 +358,45 @@ export async function syncAccountMedia(
     // 1. Lista mídias
     const { data: mediaItems } = await getMediaList(accessToken, { maxItems }, graphCtx);
 
+    // 1.1. Detecta posts excluídos no IG: pega o range de datas que o sync
+    //      atual cobre (mais antigo do que a Meta retornou até hoje) e marca
+    //      como deleted_at qualquer media no banco que tenha posted_at nesse
+    //      range mas que NÃO esteja na resposta atual. A Meta /me/media só
+    //      retorna posts ATIVOS, então o que sumiu = foi excluído.
+    if (mediaItems.length > 0) {
+      const incomingIds = new Set(mediaItems.map((m) => m.id));
+      const oldestInResponse = mediaItems.reduce(
+        (oldest, m) =>
+          new Date(m.timestamp).getTime() < new Date(oldest).getTime()
+            ? m.timestamp
+            : oldest,
+        mediaItems[0].timestamp,
+      );
+
+      const { data: existingMedia } = await supabase
+        .from("media")
+        .select("id, ig_media_id, posted_at, deleted_at")
+        .eq("ig_account_id", account.id)
+        .gte("posted_at", oldestInResponse)
+        .is("deleted_at", null);
+
+      const toMarkDeleted = (existingMedia ?? [])
+        .filter((m) => !incomingIds.has(m.ig_media_id))
+        .map((m) => m.id);
+
+      if (toMarkDeleted.length > 0) {
+        const { error: delErr } = await supabase
+          .from("media")
+          .update({ deleted_at: new Date().toISOString() })
+          .in("id", toMarkDeleted);
+        if (delErr) {
+          warnings.push(`Falha ao marcar deletados: ${delErr.message}`);
+        } else {
+          warnings.push(`${toMarkDeleted.length} post(s) detectados como excluídos no IG`);
+        }
+      }
+    }
+
     if (mediaItems.length === 0) {
       if (job) {
         await supabase
@@ -396,6 +435,7 @@ export async function syncAccountMedia(
             thumbnail_url: item.thumbnail_url ?? null,
             posted_at: postedAt,
             expires_at: expiresAt,
+            deleted_at: null, // post veio do IG → ativo (ressuscita se tinha sido marcado)
             raw_payload: item as unknown as never,
           },
           { onConflict: "ig_account_id,ig_media_id" },

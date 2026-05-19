@@ -344,6 +344,7 @@ export type Database = {
         Row: {
           caption: string | null
           created_at: string
+          deleted_at: string | null
           expires_at: string | null
           id: string
           ig_account_id: string
@@ -360,6 +361,7 @@ export type Database = {
         Insert: {
           caption?: string | null
           created_at?: string
+          deleted_at?: string | null
           expires_at?: string | null
           id?: string
           ig_account_id: string
@@ -376,6 +378,7 @@ export type Database = {
         Update: {
           caption?: string | null
           created_at?: string
+          deleted_at?: string | null
           expires_at?: string | null
           id?: string
           ig_account_id?: string
@@ -689,6 +692,7 @@ export type Database = {
         Row: {
           caption: string | null
           created_at: string
+          deleted_at: string | null
           exits: number | null
           expires_at: string | null
           id: string
@@ -716,6 +720,7 @@ export type Database = {
         Insert: {
           caption?: string | null
           created_at?: string
+          deleted_at?: string | null
           exits?: number | null
           expires_at?: string | null
           id?: string
@@ -743,6 +748,7 @@ export type Database = {
         Update: {
           caption?: string | null
           created_at?: string
+          deleted_at?: string | null
           exits?: number | null
           expires_at?: string | null
           id?: string
