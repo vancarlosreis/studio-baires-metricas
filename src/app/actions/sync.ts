@@ -10,6 +10,8 @@ import {
   getAccountMetricWithProductTypeBreakdown,
   getMediaList,
   getMediaInsightsResilient,
+  getStoriesList,
+  getStoryInsights,
   findMetric,
   getAudienceDemographicsResilient,
   getOnlineFollowers,
@@ -675,6 +677,109 @@ export async function syncPaidInsights(
   }
 }
 
+// ============================================================================
+// Sync de stories (endpoint /stories — só retorna ativos <24h)
+// ============================================================================
+
+export type StoriesSyncResult =
+  | { ok: true; igAccountId: string; storyCount: number; warnings: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Sincroniza stories ATIVOS da conta. A IG API só expõe stories <24h,
+ * então pra ter histórico precisa rodar isso de forma recorrente (cron).
+ * Aqui só upsert + insights — o cron é responsabilidade de quem chama.
+ */
+export async function syncStories(
+  igAccountId: string,
+): Promise<StoriesSyncResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Não autenticado." };
+
+  const { data: account, error: fetchErr } = await supabase
+    .from("ig_accounts")
+    .select("*")
+    .eq("id", igAccountId)
+    .single();
+
+  if (fetchErr || !account) return { ok: false, error: "Conta não encontrada." };
+
+  const warnings: string[] = [];
+
+  try {
+    const accessToken = decryptAccountToken(account.access_token_encrypted);
+    const graphCtx = contextForAccount(account);
+
+    const stories = await getStoriesList(accessToken, graphCtx);
+
+    if (stories.length === 0) {
+      return { ok: true, igAccountId, storyCount: 0, warnings };
+    }
+
+    let saved = 0;
+    for (const story of stories) {
+      const postedAt = story.timestamp;
+      const expiresAt = new Date(
+        new Date(postedAt).getTime() + 24 * 60 * 60 * 1000,
+      ).toISOString();
+
+      const { insights, errors: insightErrors } = await getStoryInsights(
+        accessToken,
+        story.id,
+        graphCtx,
+      );
+      if (insightErrors.length > 0) {
+        warnings.push(`story ${story.id}: ${insightErrors[0]}`);
+      }
+
+      const { error: upsertErr } = await supabase.from("stories").upsert(
+        {
+          ig_account_id: account.id,
+          ig_media_id: story.id,
+          caption: story.caption ?? null,
+          permalink: story.permalink ?? null,
+          media_url: story.media_url ?? null,
+          thumbnail_url: story.thumbnail_url ?? null,
+          media_type: story.media_type ?? null,
+          posted_at: postedAt,
+          expires_at: expiresAt,
+          reach: findMetric(insights, "reach"),
+          views: findMetric(insights, "views"),
+          replies: findMetric(insights, "replies"),
+          shares: findMetric(insights, "shares"),
+          total_interactions: findMetric(insights, "total_interactions"),
+          taps_forward: findMetric(insights, "taps_forward"),
+          taps_back: findMetric(insights, "taps_back"),
+          exits: findMetric(insights, "exits"),
+          navigation: findMetric(insights, "navigation"),
+          profile_activity: findMetric(insights, "profile_activity"),
+          raw_payload: {
+            story,
+            insights,
+            errors: insightErrors,
+          } as unknown as never,
+        },
+        { onConflict: "ig_account_id,ig_media_id" },
+      );
+
+      if (upsertErr) {
+        warnings.push(`story ${story.id}: ${upsertErr.message}`);
+      } else {
+        saved += 1;
+      }
+    }
+
+    return { ok: true, igAccountId, storyCount: saved, warnings };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido";
+    console.error("[syncStories] erro:", message);
+    return { ok: false, error: message };
+  }
+}
+
 /**
  * Sync completo: perfil + mídia + tráfego pago. Chamado quando usuário
  * clica em "Sincronizar agora".
@@ -705,9 +810,26 @@ export async function syncAccountFull(igAccountId: string): Promise<{
     paidWarnings.push(...paid.warnings);
   }
 
+  // Stories — só ativos (<24h). Pra histórico real precisa de cron recorrente.
+  const stories = await syncStories(igAccountId);
+  const storyWarnings: string[] = [];
+  if (!stories.ok) {
+    storyWarnings.push(`Stories: ${stories.error}`);
+  } else if (stories.storyCount > 0) {
+    storyWarnings.push(
+      `Stories: ${stories.storyCount} ativos coletados (API só expõe <24h)`,
+    );
+    storyWarnings.push(...stories.warnings);
+  }
+
   return {
     ok: true,
-    warnings: [...profile.warnings, ...media.warnings, ...paidWarnings],
+    warnings: [
+      ...profile.warnings,
+      ...media.warnings,
+      ...paidWarnings,
+      ...storyWarnings,
+    ],
   };
 }
 
