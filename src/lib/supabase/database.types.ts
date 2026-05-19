@@ -416,6 +416,7 @@ export type Database = {
           raw_payload: Json | null
           reach: number | null
           replies: number | null
+          reposts: number | null
           saves: number | null
           shares: number | null
           snapshot_at: string
@@ -441,6 +442,7 @@ export type Database = {
           raw_payload?: Json | null
           reach?: number | null
           replies?: number | null
+          reposts?: number | null
           saves?: number | null
           shares?: number | null
           snapshot_at?: string
@@ -466,6 +468,7 @@ export type Database = {
           raw_payload?: Json | null
           reach?: number | null
           replies?: number | null
+          reposts?: number | null
           saves?: number | null
           shares?: number | null
           snapshot_at?: string

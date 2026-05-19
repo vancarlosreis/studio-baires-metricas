@@ -128,6 +128,7 @@ export default async function AccountDetailDarkPage({
     "comments",
     "saves",
     "shares",
+    "reposts",
     "profile_visits",
     "follows",
     "posted_at",
