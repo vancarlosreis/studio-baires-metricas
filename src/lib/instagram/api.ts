@@ -328,6 +328,44 @@ export async function getAccountInsights(
   return (json.data ?? []) as InsightResult[];
 }
 
+/**
+ * Timeseries diária de uma métrica (sem metric_type=total_value).
+ * Retorna { end_time, value } por dia no período.
+ *
+ * Diferente de getAccountInsights, que retorna o TOTAL agregado no período,
+ * essa fonte é o que alimenta gráficos "valor por dia" tipo o "Alcance diário".
+ */
+export async function getAccountInsightsTimeseries(
+  accessToken: string,
+  metric: InsightsMetric,
+  options: { since: number; until: number },
+  ctx?: GraphContext,
+): Promise<{ end_time: string; value: number }[]> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
+  const params = new URLSearchParams({
+    metric,
+    period: "day",
+    access_token: accessToken,
+    since: String(options.since),
+    until: String(options.until),
+  });
+
+  const res = await fetch(`${apiBase}/${accountPath}/insights?${params}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error(
+      `[timeseries] ${metric} HTTP ${res.status}:`,
+      text.slice(0, 300),
+    );
+    return [];
+  }
+  const json = await res.json();
+  const values = json?.data?.[0]?.values ?? [];
+  return values as { end_time: string; value: number }[];
+}
+
 // ============================================================================
 // Breakdown por media_product_type — separa AD (pago) de POST/REEL/CAROUSEL/STORY
 // ============================================================================
@@ -760,25 +798,37 @@ export type StoryNavigationBreakdown = {
   swipe_forward: number; // SWIPE_FORWARD (= "próximo story")
 };
 
-async function fetchNavigationBreakdown(
+export async function fetchNavigationBreakdown(
   accessToken: string,
   storyId: string,
   ctx?: GraphContext,
-): Promise<StoryNavigationBreakdown | null> {
+): Promise<{
+  result: StoryNavigationBreakdown | null;
+  raw: unknown;
+  error: string | null;
+}> {
   const { apiBase } = resolveCtx(ctx);
+  // metric_type=total_value é importante: sem ele a Meta retorna
+  // values[] (timeseries) onde o breakdown vem aninhado de outro jeito.
   const params = new URLSearchParams({
     metric: "navigation",
     breakdown: "story_navigation_action_type",
+    metric_type: "total_value",
     access_token: accessToken,
   });
 
-  const res = await fetch(`${apiBase}/${storyId}/insights?${params}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
+  const url = `${apiBase}/${storyId}/insights?${params}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error(`[navigation-breakdown] HTTP ${res.status}:`, text.slice(0, 300));
+    return { result: null, raw: text.slice(0, 500), error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+  }
   const json = await res.json();
   const item = json?.data?.[0];
-  if (!item) return null;
+  if (!item) {
+    return { result: null, raw: json, error: "no data[0]" };
+  }
 
   const rows =
     item.total_value?.breakdowns?.[0]?.results ??
@@ -799,7 +849,11 @@ async function fetchNavigationBreakdown(
     else if (key === "TAP_EXIT") result.exits = v;
     else if (key === "SWIPE_FORWARD") result.swipe_forward = v;
   }
-  return result;
+  return {
+    result,
+    raw: json,
+    error: rows.length === 0 ? "breakdown vazio" : null,
+  };
 }
 
 /**
@@ -853,14 +907,21 @@ export async function getStoryInsights(
   navigation: StoryNavigationBreakdown | null;
   errors: string[];
 }> {
-  const [batchRes, navBreakdown] = await Promise.all([
+  const [batchRes, navRes] = await Promise.all([
     fetchInsightsBatchResilient(accessToken, storyId, STORY_METRICS, ctx),
-    fetchNavigationBreakdown(accessToken, storyId, ctx).catch(() => null),
+    fetchNavigationBreakdown(accessToken, storyId, ctx).catch((err) => ({
+      result: null,
+      raw: null,
+      error: err instanceof Error ? err.message : "erro",
+    })),
   ]);
+
+  const errors = [...batchRes.errors];
+  if (navRes.error) errors.push(`navigation breakdown: ${navRes.error}`);
 
   return {
     insights: batchRes.data,
-    navigation: navBreakdown,
-    errors: batchRes.errors,
+    navigation: navRes.result,
+    errors,
   };
 }
