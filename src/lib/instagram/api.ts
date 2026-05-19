@@ -571,20 +571,17 @@ const SAFE_MEDIA_METRICS = [
   "total_interactions",
 ];
 
-// Stories têm conjunto totalmente diferente (não é tentado pra reels/feed).
-// v22+: impressions foi unificado em "views". Mantém-se "navigation" como
-// total agregado de avançar/voltar/próximo/sair.
+// Stories — v22+ unificou impressions em "views" e depreciou taps_forward/
+// taps_back/exits em favor de "navigation" agregado. Pra ter as 4 ações
+// separadas (avançar/voltar/sair/próximo) precisa do breakdown
+// story_navigation_action_type — fazemos em chamada separada.
 const STORY_METRICS = [
   "reach",
   "views",
   "total_interactions",
-  "taps_forward",
-  "taps_back",
-  "exits",
   "replies",
   "shares",
   "navigation",
-  "profile_visits",
   "profile_activity",
 ];
 
@@ -752,33 +749,118 @@ export async function getStoriesList(
 }
 
 /**
- * Busca insights de um story individual com fallback (batch → uma a uma).
+ * Detalhamento de `navigation` (avançar/voltar/sair/próximo) via breakdown
+ * `story_navigation_action_type`. Substitui as métricas taps_forward,
+ * taps_back, exits depreciadas no v22+.
+ */
+export type StoryNavigationBreakdown = {
+  taps_forward: number; // TAP_FORWARD
+  taps_back: number; // TAP_BACK
+  exits: number; // TAP_EXIT
+  swipe_forward: number; // SWIPE_FORWARD (= "próximo story")
+};
+
+async function fetchNavigationBreakdown(
+  accessToken: string,
+  storyId: string,
+  ctx?: GraphContext,
+): Promise<StoryNavigationBreakdown | null> {
+  const { apiBase } = resolveCtx(ctx);
+  const params = new URLSearchParams({
+    metric: "navigation",
+    breakdown: "story_navigation_action_type",
+    access_token: accessToken,
+  });
+
+  const res = await fetch(`${apiBase}/${storyId}/insights?${params}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  const item = json?.data?.[0];
+  if (!item) return null;
+
+  const rows =
+    item.total_value?.breakdowns?.[0]?.results ??
+    item.values?.[0]?.value?.breakdowns?.[0]?.results ??
+    [];
+
+  const result: StoryNavigationBreakdown = {
+    taps_forward: 0,
+    taps_back: 0,
+    exits: 0,
+    swipe_forward: 0,
+  };
+  for (const row of rows) {
+    const key = (row.dimension_values?.[0] ?? "") as string;
+    const v = typeof row.value === "number" ? row.value : 0;
+    if (key === "TAP_FORWARD") result.taps_forward = v;
+    else if (key === "TAP_BACK") result.taps_back = v;
+    else if (key === "TAP_EXIT") result.exits = v;
+    else if (key === "SWIPE_FORWARD") result.swipe_forward = v;
+  }
+  return result;
+}
+
+/**
+ * Smart fallback: se o batch falhar, tenta remover a métrica que a API
+ * apontou como inválida (mensagem de erro inclui o nome) e re-tenta UMA vez.
+ * Evita o loop de 11 chamadas individuais que mata a performance.
+ */
+async function fetchInsightsBatchResilient(
+  accessToken: string,
+  storyId: string,
+  metrics: string[],
+  ctx?: GraphContext,
+): Promise<{ data: InsightResult[]; errors: string[] }> {
+  try {
+    const data = await fetchInsightsBatch(accessToken, storyId, metrics, ctx);
+    return { data, errors: [] };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    // A IG API costuma dizer "metric[N] must be one of..." ou
+    // "(#100) The value for metric ... is not valid". Tenta extrair o nome.
+    const bad = metrics.find((m) => msg.toLowerCase().includes(m.toLowerCase()));
+    if (bad) {
+      const remaining = metrics.filter((m) => m !== bad);
+      try {
+        const data = await fetchInsightsBatch(accessToken, storyId, remaining, ctx);
+        return { data, errors: [`${bad}: ${msg.slice(0, 120)}`] };
+      } catch (err2) {
+        return {
+          data: [],
+          errors: [`batch retry sem ${bad}: ${err2 instanceof Error ? err2.message : "erro"}`],
+        };
+      }
+    }
+    return { data: [], errors: [msg.slice(0, 200)] };
+  }
+}
+
+/**
+ * Busca insights de um story: batch principal + breakdown de navigation
+ * em paralelo. Retorna também os 4 valores separados de navegação
+ * (taps_forward, taps_back, exits, swipe_forward) via breakdown.
+ *
  * Stories perdem acesso a insights ~24h após expirarem; chame logo após coletar.
  */
 export async function getStoryInsights(
   accessToken: string,
   storyId: string,
   ctx?: GraphContext,
-): Promise<{ insights: InsightResult[]; errors: string[] }> {
-  const errors: string[] = [];
-  const insights: InsightResult[] = [];
+): Promise<{
+  insights: InsightResult[];
+  navigation: StoryNavigationBreakdown | null;
+  errors: string[];
+}> {
+  const [batchRes, navBreakdown] = await Promise.all([
+    fetchInsightsBatchResilient(accessToken, storyId, STORY_METRICS, ctx),
+    fetchNavigationBreakdown(accessToken, storyId, ctx).catch(() => null),
+  ]);
 
-  try {
-    const batch = await fetchInsightsBatch(accessToken, storyId, STORY_METRICS, ctx);
-    insights.push(...batch);
-  } catch {
-    // Batch falhou (uma métrica ruim quebra tudo) — tenta uma a uma.
-    for (const metric of STORY_METRICS) {
-      try {
-        const single = await fetchInsightsBatch(accessToken, storyId, [metric], ctx);
-        insights.push(...single);
-      } catch (err) {
-        errors.push(
-          `${metric}: ${err instanceof Error ? err.message : "erro"}`,
-        );
-      }
-    }
-  }
-
-  return { insights, errors };
+  return {
+    insights: batchRes.data,
+    navigation: navBreakdown,
+    errors: batchRes.errors,
+  };
 }

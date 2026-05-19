@@ -548,6 +548,7 @@ export type Database = {
           reach: number | null
           replies: number | null
           shares: number | null
+          swipe_forward: number | null
           taps_back: number | null
           taps_forward: number | null
           thumbnail_url: string | null
@@ -573,6 +574,7 @@ export type Database = {
           reach?: number | null
           replies?: number | null
           shares?: number | null
+          swipe_forward?: number | null
           taps_back?: number | null
           taps_forward?: number | null
           thumbnail_url?: string | null
@@ -598,6 +600,7 @@ export type Database = {
           reach?: number | null
           replies?: number | null
           shares?: number | null
+          swipe_forward?: number | null
           taps_back?: number | null
           taps_forward?: number | null
           thumbnail_url?: string | null

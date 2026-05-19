@@ -86,7 +86,7 @@ export function StoryCard({ story }: { story: StoryRow }) {
         <Metric icon={<MessageCircle size={12} />} label="Respostas" value={fmt(story.replies)} />
         <Metric icon={<Share2 size={12} />} label="Compartilhamentos" value={fmt(story.shares)} />
         <Metric icon={<ChevronRight size={12} />} label="Avançar" value={fmt(story.taps_forward)} />
-        <Metric icon={<SkipForward size={12} />} label="Próximo story" value={fmt(story.navigation)} />
+        <Metric icon={<SkipForward size={12} />} label="Próximo story" value={fmt(story.swipe_forward)} />
         <Metric icon={<ChevronLeft size={12} />} label="Voltar" value={fmt(story.taps_back)} />
         <Metric icon={<LogOut size={12} />} label="Sair" value={fmt(story.exits)} />
       </div>
