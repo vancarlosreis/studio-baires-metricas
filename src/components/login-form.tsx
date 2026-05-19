@@ -41,17 +41,17 @@ export function LoginForm({ next }: { next?: string }) {
 
   if (state.sent) {
     return (
-      <div className="w-full rounded-3xl border border-ink/10 bg-paper p-8 text-center shadow-sm">
-        <div className="headline-display text-3xl text-ink">
-          Confira seu <span className="text-burgundy">e-mail</span>.
-        </div>
-        <p className="mt-4 text-base text-ink-soft">
-          Enviamos um link para <strong className="text-ink">{email}</strong>.
+      <div className="w-full text-center">
+        <h2 className="text-2xl font-bold text-fg">
+          Confira seu <span className="dark-text-grad">e-mail</span>.
+        </h2>
+        <p className="mt-3 text-sm text-fg-muted">
+          Enviamos um link para <strong className="text-fg">{email}</strong>.
           Abra o link em qualquer dispositivo pra entrar.
         </p>
         <a
           href="/"
-          className="mt-6 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
+          className="mt-5 inline-block text-xs font-semibold text-fg-muted underline-offset-4 hover:text-fg hover:underline"
         >
           Tentar outro e-mail
         </a>
@@ -66,7 +66,7 @@ export function LoginForm({ next }: { next?: string }) {
         <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-sm font-semibold text-ink"
+            className="block text-xs font-semibold uppercase tracking-wider text-fg-muted"
           >
             E-mail
           </label>
@@ -79,49 +79,49 @@ export function LoginForm({ next }: { next?: string }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="voce@studiobaires.com"
-            className="block w-full rounded-full border border-ink/10 bg-paper px-6 py-4 text-base text-ink placeholder:text-ink-soft/50 outline-none transition-all focus:border-ink/30 focus:ring-2 focus:ring-forest/20"
+            className="block w-full rounded-full border border-border bg-surface-2 px-5 py-3 text-sm text-fg placeholder:text-fg-faint outline-none transition focus:border-neon-purple focus:ring-2 focus:ring-neon-purple/30"
           />
         </div>
 
         <button
           type="submit"
           disabled={pending || !email}
-          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-ink px-8 text-base font-semibold text-cream transition-colors hover:bg-forest disabled:opacity-50"
+          className="dark-bg-grad-purple-pink dark-glow-purple inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-sm font-semibold text-white transition disabled:opacity-50"
         >
           {pending ? "Enviando link…" : "Receber link por e-mail"}
         </button>
 
         {state.error && (
-          <p className="rounded-2xl border border-burgundy/20 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
+          <p className="rounded-2xl border border-danger-neon/30 bg-danger-neon/10 px-4 py-3 text-sm text-danger-neon">
             {state.error}
           </p>
         )}
       </form>
 
-      <div className="flex items-center gap-4 py-2">
-        <div className="h-px flex-1 bg-ink/15" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+      <div className="flex items-center gap-4 py-1">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
           ou
         </span>
-        <div className="h-px flex-1 bg-ink/15" />
+        <div className="h-px flex-1 bg-border" />
       </div>
 
       <form action={signInWithGoogle}>
         {next && <input type="hidden" name="next" value={next} />}
         <button
           type="submit"
-          className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-ink/15 bg-paper px-6 text-base font-semibold text-ink transition-colors hover:border-ink/40"
+          className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-full border border-border bg-surface-2 px-5 text-sm font-semibold text-fg transition hover:border-border-strong"
         >
           <GoogleIcon className="h-5 w-5" />
           Entrar com Google
         </button>
       </form>
 
-      <p className="pt-2 text-center text-xs text-ink-soft">
+      <p className="pt-1 text-center text-[11px] text-fg-faint">
         Ao entrar, você concorda com nossa{" "}
         <a
           href="/privacidade"
-          className="underline-offset-2 hover:underline"
+          className="underline-offset-2 hover:text-fg-muted hover:underline"
         >
           Política de Privacidade
         </a>

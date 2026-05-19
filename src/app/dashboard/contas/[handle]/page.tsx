@@ -36,7 +36,6 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 import { resolvePeriod, previousPeriod } from "@/lib/period";
-import { Sidebar } from "@/components/dashboard-dark/Sidebar";
 import { Topbar } from "@/components/dashboard-dark/Topbar";
 import { KpiCard } from "@/components/dashboard-dark/KpiCard";
 import { KpiCompareCard } from "@/components/dashboard-dark/KpiCompareCard";
@@ -299,11 +298,13 @@ export default async function AccountDetailDarkPage({
     .join("");
   const userAvatar = (user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null) as string | null;
 
-  return (
-    <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-6">
-      <Sidebar initials={userInitials || "DG"} avatarUrl={userAvatar} />
+  // userInitials e userAvatar agora vão pra AppSidebar no layout — não precisa
+  // dos valores aqui na page. Mantemos só pra retrocompat caso o Topbar use.
+  void userInitials;
+  void userAvatar;
 
-      <main className="flex min-w-0 flex-col gap-6 pb-10">
+  return (
+    <div className="flex flex-col gap-6 pb-10">
         <Topbar
           username={account.ig_username}
           displayName={displayName}
@@ -693,8 +694,6 @@ export default async function AccountDetailDarkPage({
         ) : (
           <MediaGridDark items={media} />
         )}
-      </main>
-
     </div>
   );
 }

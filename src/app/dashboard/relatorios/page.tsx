@@ -37,55 +37,55 @@ export default async function RelatoriosPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
+    <div className="flex flex-col gap-6 pb-10">
       {params.generated && (
-        <div className="mb-8 rounded-2xl border border-forest/30 bg-forest/5 px-6 py-4">
-          <p className="text-sm font-semibold text-forest">
+        <div className="mb-8 rounded-2xl border border-success-neon/30 bg-success-neon/10 px-6 py-4">
+          <p className="text-sm font-semibold text-success-neon">
             ✨ Relatório gerado com sucesso. Clique em &ldquo;Baixar&rdquo; abaixo.
           </p>
         </div>
       )}
 
       {params.error && (
-        <div className="mb-8 rounded-2xl border border-burgundy/30 bg-burgundy/5 px-6 py-4">
-          <p className="text-sm font-semibold text-burgundy">
+        <div className="mb-8 rounded-2xl border border-danger-neon/30 bg-danger-neon/10 px-6 py-4">
+          <p className="text-sm font-semibold text-danger-neon">
             Erro ao gerar relatório
           </p>
-          <p className="mt-1 text-xs text-burgundy/80">
+          <p className="mt-1 text-xs text-danger-neon/80">
             <code>{params.error}</code>
           </p>
         </div>
       )}
 
       <div className="mb-10">
-        <p className="text-sm font-semibold uppercase tracking-wider text-ink-soft">
+        <p className="text-sm font-semibold uppercase tracking-wider text-fg-muted">
           Estúdio
         </p>
-        <h1 className="headline-display mt-2 text-5xl text-ink sm:text-6xl">
-          Relatórios <span className="text-burgundy italic">PDF</span>
+        <h1 className="headline-display mt-2 text-5xl text-fg sm:text-6xl">
+          Relatórios <span className="text-danger-neon italic">PDF</span>
         </h1>
-        <p className="mt-3 max-w-2xl text-base text-ink-soft sm:text-lg">
+        <p className="mt-3 max-w-2xl text-base text-fg-muted sm:text-lg">
           Gere relatórios mensais brandados Studio Baires pra entregar pros
           clientes da agência.
         </p>
       </div>
 
       {/* Gerar novo */}
-      <section className="mb-12 rounded-3xl border border-ink/10 bg-paper p-8">
-        <h2 className="headline-display text-2xl text-ink">
+      <section className="mb-12 rounded-3xl border border-border bg-surface p-8">
+        <h2 className="headline-display text-2xl text-fg">
           Gerar <span className="italic">novo</span>
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1 text-sm text-fg-muted">
           Cobre os últimos 30 dias. Cliente recebe um PDF estilo revista.
         </p>
 
         {accounts.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-ink/20 bg-cream/50 p-6 text-center">
-            <p className="text-sm text-ink-soft">
+          <div className="mt-6 rounded-2xl border border-dashed border-border-strong bg-surface-2/50 p-6 text-center">
+            <p className="text-sm text-fg-muted">
               <span className="italic">Nenhuma conta conectada ainda.</span>{" "}
               <Link
                 href="/dashboard/conectar"
-                className="font-semibold text-ink underline-offset-2 hover:underline"
+                className="font-semibold text-fg underline-offset-2 hover:underline"
               >
                 Conecte uma conta
               </Link>{" "}
@@ -98,20 +98,20 @@ export default async function RelatoriosPage({
               <form
                 key={a.id}
                 action={generateReportFormAction}
-                className="rounded-2xl border border-ink/10 bg-cream/40 p-4"
+                className="rounded-2xl border border-border bg-surface-2/40 p-4"
               >
                 <input type="hidden" name="igAccountId" value={a.id} />
                 <div className="mb-3">
-                  <div className="truncate text-sm font-semibold text-ink">
+                  <div className="truncate text-sm font-semibold text-fg">
                     {a.ig_account_name || a.ig_username}
                   </div>
-                  <div className="truncate text-xs text-ink-soft">
+                  <div className="truncate text-xs text-fg-muted">
                     @{a.ig_username}
                   </div>
                 </div>
                 <button
                   type="submit"
-                  className="inline-flex h-9 w-full items-center justify-center rounded-full bg-ink px-4 text-xs font-semibold text-cream transition-colors hover:bg-forest"
+                  className="inline-flex h-9 w-full items-center justify-center rounded-full bg-neon-purple px-4 text-xs font-semibold text-white transition-colors hover:bg-neon-purple"
                 >
                   Gerar relatório
                 </button>
@@ -123,30 +123,30 @@ export default async function RelatoriosPage({
 
       {/* Histórico */}
       <section>
-        <h2 className="headline-display text-3xl text-ink">
+        <h2 className="headline-display text-3xl text-fg">
           Histórico
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1 text-sm text-fg-muted">
           {reports?.length === 0 || !reports
             ? "Nenhum relatório gerado ainda"
             : `${reports.length} relatório${reports.length === 1 ? "" : "s"}`}
         </p>
 
         {reports && reports.length > 0 && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-ink/10 bg-paper">
+          <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-ink/10 text-left">
-                  <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                <tr className="border-b border-border text-left">
+                  <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
                     Conta
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                  <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
                     Período
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                  <th className="px-6 py-4 text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
                     Gerado em
                   </th>
-                  <th className="px-6 py-4 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                  <th className="px-6 py-4 text-right text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
                     Ações
                   </th>
                 </tr>
@@ -160,21 +160,21 @@ export default async function RelatoriosPage({
                   return (
                     <tr
                       key={r.id}
-                      className="border-b border-ink/5 last:border-b-0 hover:bg-cream/30"
+                      className="border-b border-border last:border-b-0 hover:bg-surface-2/30"
                     >
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-ink">
+                        <div className="font-semibold text-fg">
                           {acc?.ig_account_name || acc?.ig_username || "—"}
                         </div>
-                        <div className="text-xs text-ink-soft">
+                        <div className="text-xs text-fg-muted">
                           @{acc?.ig_username}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-ink-soft">
+                      <td className="px-6 py-4 text-sm text-fg-muted">
                         {formatDate(r.period_start)} →{" "}
                         {formatDate(r.period_end)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-ink-soft">
+                      <td className="px-6 py-4 text-sm text-fg-muted">
                         {formatDate(r.generated_at)}
                       </td>
                       <td className="px-6 py-4">
@@ -183,7 +183,7 @@ export default async function RelatoriosPage({
                             <input type="hidden" name="reportId" value={r.id} />
                             <button
                               type="submit"
-                              className="rounded-full bg-forest px-4 py-1.5 text-xs font-semibold text-cream hover:bg-forest-soft"
+                              className="rounded-full bg-neon-purple px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                             >
                               Baixar PDF
                             </button>
@@ -192,7 +192,7 @@ export default async function RelatoriosPage({
                             <input type="hidden" name="reportId" value={r.id} />
                             <button
                               type="submit"
-                              className="rounded-full border border-burgundy/30 px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-burgundy/5"
+                              className="rounded-full border border-burgundy/30 px-3 py-1.5 text-xs font-semibold text-danger-neon hover:bg-burgundy/5"
                               title="Deletar"
                             >
                               ✕

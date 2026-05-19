@@ -1,7 +1,33 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
-  /* Brand palette — Studio Baires (editorial Y2K, usada em login/overview/conectar) */
+  /* ============================================================ */
+  /* TOKENS SEMÂNTICOS — respondem ao tema (light / dark)         */
+  /* ============================================================ */
+  /* Base + surfaces (alterados via :root e :root.dark abaixo)    */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  /* Neon accents — mesmos em ambos os temas (intensidade ajusta) */
+  --color-neon-purple: #8b5cf6;
+  --color-neon-pink: #ec4899;
+  --color-neon-blue: #3b82f6;
+  --color-neon-cyan: #22d3ee;
+  --color-neon-amber: #f59e0b;
+  --color-success-neon: #22c55e;
+  --color-danger-neon: #ef4444;
+  --color-warning-neon: #f59e0b;
+
+  /* Brand editorial — mantida pra eventuais usos pontuais */
   --color-cream: #ece3d0;
   --color-paper: #f5edd9;
   --color-forest: #2f4a35;
@@ -12,24 +38,14 @@
   --color-ink: #2a1f18;
   --color-ink-soft: #5a4a3a;
 
-  /* Dark/Neon palette — usada apenas em /dashboard/contas/[handle] */
-  --color-bg-base: #0b0b0f;
-  --color-bg-elevated: #111114;
-  --color-bg-raised: #171719;
-  --color-surface: #1a1a1f;
-  --color-surface-2: #202028;
-  --color-surface-3: #26262f;
-  --color-neon-purple: #8b5cf6;
-  --color-neon-pink: #ec4899;
-  --color-neon-blue: #3b82f6;
-  --color-neon-cyan: #22d3ee;
-  --color-success-neon: #22c55e;
-  --color-danger-neon: #ef4444;
-  --color-warning-neon: #f59e0b;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: rgba(255, 255, 255, 0.72);
-  --color-text-muted: rgba(255, 255, 255, 0.5);
-  --color-text-faint: rgba(255, 255, 255, 0.32);
+  /* Aliases legados (compat com componentes que ainda referenciam) */
+  --color-bg-base: var(--bg);
+  --color-bg-elevated: var(--surface);
+  --color-bg-raised: var(--surface-2);
+  --color-text-primary: var(--fg);
+  --color-text-secondary: var(--fg-muted);
+  --color-text-muted: var(--fg-muted);
+  --color-text-faint: var(--fg-faint);
 
   /* Typography */
   --font-display: var(--font-ivypresto);
@@ -37,37 +53,93 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Dark-scope utility helpers — só aplicados dentro de /dashboard/contas/[handle] */
-.dark-scope {
-  background: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+/* ============================================================ */
+/* PALETA DARK (default)                                         */
+/* ============================================================ */
+:root,
+:root.dark {
+  --bg: #0b0b0f;
+  --surface: #1a1a1f;
+  --surface-2: #202028;
+  --surface-3: #26262f;
+  --fg: #ffffff;
+  --fg-muted: rgba(255, 255, 255, 0.72);
+  --fg-faint: rgba(255, 255, 255, 0.5);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+  --card-inset-shadow: rgba(255, 255, 255, 0.04);
+  --card-shadow: rgba(0, 0, 0, 0.35);
+  --card-bg-overlay: rgba(255, 255, 255, 0.04);
 }
 
-.dark-scope ::-webkit-scrollbar {
+/* ============================================================ */
+/* PALETA LIGHT                                                  */
+/* ============================================================ */
+:root.light {
+  --bg: #f7f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f1f5;
+  --surface-3: #e7e7ee;
+  --fg: #0b0b0f;
+  --fg-muted: rgba(11, 11, 15, 0.72);
+  --fg-faint: rgba(11, 11, 15, 0.5);
+  --border: rgba(11, 11, 15, 0.08);
+  --border-strong: rgba(11, 11, 15, 0.16);
+
+  --scrollbar-thumb: rgba(11, 11, 15, 0.18);
+  --scrollbar-thumb-hover: rgba(11, 11, 15, 0.32);
+  --card-inset-shadow: rgba(11, 11, 15, 0.03);
+  --card-shadow: rgba(11, 11, 15, 0.06);
+  --card-bg-overlay: rgba(11, 11, 15, 0.02);
+}
+
+/* ============================================================ */
+/* Aplicação base                                                */
+/* ============================================================ */
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Scrollbar global */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.dark-scope ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
-.dark-scope ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ============================================================ */
+/* Helpers visuais (cards, gradientes, glows)                   */
+/* ============================================================ */
+.dark-scope,
+.theme-scope {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark-card {
   background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.04),
-      rgba(255, 255, 255, 0)
+      var(--card-bg-overlay),
+      transparent
     ),
-    var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+    var(--surface);
+  border: 1px solid var(--border);
   border-radius: 20px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.04) inset,
-    0 8px 24px rgba(0, 0, 0, 0.35);
+    0 1px 0 var(--card-inset-shadow) inset,
+    0 8px 24px var(--card-shadow);
 }
 
 .dark-card-hover {
@@ -78,14 +150,14 @@
 }
 .dark-card-hover:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-strong);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 16px 40px rgba(0, 0, 0, 0.45);
+    0 1px 0 var(--card-inset-shadow) inset,
+    0 16px 40px var(--card-shadow);
 }
 
 .dark-text-grad {
-  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  background: linear-gradient(135deg, var(--color-neon-purple) 0%, var(--color-neon-pink) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -111,8 +183,8 @@
   background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
 }
 
-/* Ambient glow no fundo do dark scope */
-.dark-scope::before {
+/* Ambient glow no fundo da app */
+.theme-glow::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -121,17 +193,35 @@
   background-image:
     radial-gradient(
       1200px 600px at 80% -10%,
-      rgba(139, 92, 246, 0.1),
+      rgba(139, 92, 246, 0.12),
       transparent 60%
     ),
     radial-gradient(
       900px 500px at -10% 30%,
-      rgba(236, 72, 153, 0.06),
+      rgba(236, 72, 153, 0.08),
       transparent 60%
     ),
     radial-gradient(
       800px 400px at 60% 110%,
-      rgba(59, 130, 246, 0.07),
+      rgba(59, 130, 246, 0.08),
+      transparent 60%
+    );
+}
+:root.light .theme-glow::before {
+  background-image:
+    radial-gradient(
+      1200px 600px at 80% -10%,
+      rgba(139, 92, 246, 0.06),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at -10% 30%,
+      rgba(236, 72, 153, 0.04),
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 400px at 60% 110%,
+      rgba(59, 130, 246, 0.04),
       transparent 60%
     );
 }
@@ -148,7 +238,7 @@
 /* Headline utility — voz editorial Studio Baires (IvyPresto Display) */
 .headline-display {
   font-family: var(--font-display);
-  font-style: italic; /* IvyPresto pack atual não tem italic dedicado — browser aplica oblique sintético; avaliar */
+  font-style: italic;
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 0.95;

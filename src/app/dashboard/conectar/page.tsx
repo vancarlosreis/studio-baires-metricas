@@ -48,33 +48,33 @@ export default async function ConectarPage({
     : null;
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-16 sm:px-10 sm:py-24">
+    <div className="mx-auto max-w-3xl pb-10">
       <div className="mb-10">
         <Link
           href="/dashboard"
-          className="text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline"
+          className="text-sm font-semibold text-fg-muted underline-offset-4 hover:text-fg hover:underline"
         >
           ← Voltar
         </Link>
       </div>
 
-      <p className="text-sm font-semibold uppercase tracking-wider text-ink-soft">
+      <p className="text-sm font-semibold uppercase tracking-wider text-fg-muted">
         Nova conta
       </p>
-      <h1 className="headline-display mt-2 text-5xl text-ink sm:text-6xl">
-        Conectar <span className="text-burgundy">Instagram</span>
+      <h1 className="headline-display mt-2 text-5xl text-fg sm:text-6xl">
+        Conectar <span className="text-danger-neon">Instagram</span>
       </h1>
-      <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
+      <p className="mt-4 max-w-xl text-base leading-relaxed text-fg-muted sm:text-lg">
         Vamos pedir autorização pra acessar as métricas da conta Instagram que
         você quer adicionar. O fluxo abre o site oficial do Instagram —{" "}
         <span className="italic">nunca pedimos sua senha aqui dentro</span>.
       </p>
 
       {errorMsg && (
-        <div className="mt-8 rounded-2xl border border-burgundy/20 bg-burgundy/5 p-4">
-          <p className="text-sm font-semibold text-burgundy">{errorMsg}</p>
+        <div className="mt-8 rounded-2xl border border-danger-neon/30 bg-danger-neon/10 p-4">
+          <p className="text-sm font-semibold text-danger-neon">{errorMsg}</p>
           {errorDetail && (
-            <p className="mt-1 text-xs text-burgundy/80">
+            <p className="mt-1 text-xs text-danger-neon/80">
               Detalhe: <code>{errorDetail}</code>
             </p>
           )}
@@ -82,36 +82,36 @@ export default async function ConectarPage({
       )}
 
       {/* Card explicativo + CTA */}
-      <div className="mt-12 rounded-3xl border border-ink/10 bg-paper p-8 shadow-sm">
-        <h2 className="headline-display text-2xl text-ink">
+      <div className="mt-12 rounded-3xl border border-border bg-surface p-8 shadow-sm">
+        <h2 className="headline-display text-2xl text-fg">
           O que vamos acessar
         </h2>
-        <ul className="mt-4 space-y-3 text-sm text-ink-soft">
+        <ul className="mt-4 space-y-3 text-sm text-fg-muted">
           <li className="flex gap-3">
-            <span className="text-forest">✓</span>
+            <span className="text-success-neon">✓</span>
             <span>
-              <strong className="text-ink">Informações básicas do perfil</strong>{" "}
+              <strong className="text-fg">Informações básicas do perfil</strong>{" "}
               — username, foto e número de seguidores.
             </span>
           </li>
           <li className="flex gap-3">
-            <span className="text-forest">✓</span>
+            <span className="text-success-neon">✓</span>
             <span>
-              <strong className="text-ink">Métricas de conta</strong> — alcance,
+              <strong className="text-fg">Métricas de conta</strong> — alcance,
               impressões, visualizações do perfil e cliques.
             </span>
           </li>
           <li className="flex gap-3">
-            <span className="text-forest">✓</span>
+            <span className="text-success-neon">✓</span>
             <span>
-              <strong className="text-ink">Métricas de posts, reels e stories</strong>{" "}
+              <strong className="text-fg">Métricas de posts, reels e stories</strong>{" "}
               — engajamento, salvamentos, compartilhamentos.
             </span>
           </li>
-          <li className="flex gap-3 text-ink-soft/70">
-            <span className="text-ink-soft/70">✗</span>
+          <li className="flex gap-3 text-fg-muted/70">
+            <span className="text-fg-muted/70">✗</span>
             <span>
-              <strong className="text-ink-soft">
+              <strong className="text-fg-muted">
                 Nunca acessamos suas mensagens diretas
               </strong>{" "}
               ou publicamos qualquer coisa em seu nome.
@@ -122,45 +122,45 @@ export default async function ConectarPage({
         <form action={startInstagramOAuth} className="mt-8">
           <button
             type="submit"
-            className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-ink px-8 text-base font-semibold text-cream transition-colors hover:bg-burgundy"
+            className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-neon-purple px-8 text-base font-semibold text-white transition-colors hover:opacity-90"
           >
             <InstagramIcon className="h-5 w-5" />
             Conectar via Instagram
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-ink-soft">
+        <p className="mt-4 text-center text-xs text-fg-muted">
           Uma conta por vez · Você será redirecionada pro Instagram
         </p>
       </div>
 
       {/* Segundo caminho: Meta Business Suite */}
-      <div className="mt-6 rounded-3xl border border-ink/10 bg-paper p-8 shadow-sm">
+      <div className="mt-6 rounded-3xl border border-border bg-surface p-8 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="headline-display text-2xl text-ink">
+            <h2 className="headline-display text-2xl text-fg">
               Importar do Meta Business Suite
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
               Lista todas as contas Instagram conectadas às Páginas do Facebook que
               você gerencia — perfeito pra agência que quer importar vários
               clientes de uma vez.
             </p>
           </div>
-          <span className="shrink-0 rounded-full bg-tape/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink">
+          <span className="shrink-0 rounded-full bg-warning-neon/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-fg">
             Novo
           </span>
         </div>
 
-        <ul className="mt-4 space-y-2 text-xs text-ink-soft">
+        <ul className="mt-4 space-y-2 text-xs text-fg-muted">
           <li className="flex gap-2">
-            <span className="text-forest">✓</span>
+            <span className="text-success-neon">✓</span>
             <span>
               Cada conta IG deve ter Página do FB vinculada (Meta Business Suite)
             </span>
           </li>
           <li className="flex gap-2">
-            <span className="text-forest">✓</span>
+            <span className="text-success-neon">✓</span>
             <span>Permite selecionar quais importar — não traz todas automaticamente</span>
           </li>
         </ul>
@@ -168,20 +168,20 @@ export default async function ConectarPage({
         <form action={startFacebookOAuth} className="mt-6">
           <button
             type="submit"
-            className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-ink/20 bg-cream px-8 text-sm font-semibold text-ink transition-colors hover:border-ink/40"
+            className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-border-strong bg-surface-2 px-8 text-sm font-semibold text-fg transition-colors hover:border-fg/30"
           >
             <FacebookIcon className="h-5 w-5" />
             Conectar via Facebook
           </button>
         </form>
 
-        <p className="mt-3 text-center text-xs text-ink-soft">
+        <p className="mt-3 text-center text-xs text-fg-muted">
           Você será redirecionada pro Facebook · Não publicamos nada em seu nome
         </p>
       </div>
 
-      <p className="mt-12 text-center text-sm text-ink-soft">
-        A conta precisa ser <strong className="text-ink">Business ou Creator</strong>.
+      <p className="mt-12 text-center text-sm text-fg-muted">
+        A conta precisa ser <strong className="text-fg">Business ou Creator</strong>.
         Conta pessoal não funciona — converta nas configurações do Instagram antes.
       </p>
     </div>
