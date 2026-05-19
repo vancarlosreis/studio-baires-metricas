@@ -571,15 +571,21 @@ const SAFE_MEDIA_METRICS = [
   "total_interactions",
 ];
 
-// Stories têm conjunto totalmente diferente (não é tentado pra reels/feed)
+// Stories têm conjunto totalmente diferente (não é tentado pra reels/feed).
+// v22+: impressions foi unificado em "views". Mantém-se "navigation" como
+// total agregado de avançar/voltar/próximo/sair.
 const STORY_METRICS = [
   "reach",
-  "impressions",
+  "views",
+  "total_interactions",
   "taps_forward",
   "taps_back",
   "exits",
   "replies",
+  "shares",
   "navigation",
+  "profile_visits",
+  "profile_activity",
 ];
 
 // Pra REELS, tentamos métricas extras separadamente — se falhar não bloqueia
@@ -687,6 +693,90 @@ export async function getMediaInsightsResilient(
       insights.push(...extra);
     } catch {
       // Silencioso — plays é opcional pra reels
+    }
+  }
+
+  return { insights, errors };
+}
+
+// ============================================================================
+// Stories — endpoint dedicado /stories (só retorna stories ATIVOS, <24h)
+// ============================================================================
+
+export type StoryItem = {
+  id: string;
+  media_type: MediaType;
+  media_product_type?: MediaProductType;
+  caption?: string;
+  permalink?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  timestamp: string;
+};
+
+/**
+ * Lista os stories ATIVOS da conta (publicados nas últimas 24h).
+ * A IG API NÃO expõe stories expirados — pra ter histórico precisa de cron
+ * rodando a cada 4-6h coletando stories ativos antes deles expirarem.
+ */
+export async function getStoriesList(
+  accessToken: string,
+  ctx?: GraphContext,
+): Promise<StoryItem[]> {
+  const { apiBase, accountPath } = resolveCtx(ctx);
+  const fields = [
+    "id",
+    "media_type",
+    "media_product_type",
+    "caption",
+    "permalink",
+    "media_url",
+    "thumbnail_url",
+    "timestamp",
+  ].join(",");
+  const params = new URLSearchParams({
+    fields,
+    limit: "100",
+    access_token: accessToken,
+  });
+
+  const res = await fetch(`${apiBase}/${accountPath}/stories?${params}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`getStoriesList ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  return (json.data ?? []) as StoryItem[];
+}
+
+/**
+ * Busca insights de um story individual com fallback (batch → uma a uma).
+ * Stories perdem acesso a insights ~24h após expirarem; chame logo após coletar.
+ */
+export async function getStoryInsights(
+  accessToken: string,
+  storyId: string,
+  ctx?: GraphContext,
+): Promise<{ insights: InsightResult[]; errors: string[] }> {
+  const errors: string[] = [];
+  const insights: InsightResult[] = [];
+
+  try {
+    const batch = await fetchInsightsBatch(accessToken, storyId, STORY_METRICS, ctx);
+    insights.push(...batch);
+  } catch {
+    // Batch falhou (uma métrica ruim quebra tudo) — tenta uma a uma.
+    for (const metric of STORY_METRICS) {
+      try {
+        const single = await fetchInsightsBatch(accessToken, storyId, [metric], ctx);
+        insights.push(...single);
+      } catch (err) {
+        errors.push(
+          `${metric}: ${err instanceof Error ? err.message : "erro"}`,
+        );
+      }
     }
   }
 

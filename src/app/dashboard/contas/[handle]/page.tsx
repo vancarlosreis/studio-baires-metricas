@@ -23,6 +23,10 @@ import {
 } from "@/lib/queries/aggregates";
 import { getPaidAggregatesForPeriod } from "@/lib/queries/paid";
 import { fetchAccountKpisForPeriod } from "@/lib/queries/account-kpis";
+import {
+  listStoriesForPeriod,
+  getStoriesAggregates,
+} from "@/lib/queries/stories";
 
 // Sempre renderizar dinamicamente — os KPIs do topo chamam IG API com
 // since/until do período selecionado pelo usuário, então cache não vale.
@@ -32,13 +36,14 @@ import { resolvePeriod, previousPeriod } from "@/lib/period";
 import { Sidebar } from "@/components/dashboard-dark/Sidebar";
 import { Topbar } from "@/components/dashboard-dark/Topbar";
 import { KpiCard } from "@/components/dashboard-dark/KpiCard";
-import { KpiCompareCard, KpiEmptyCard } from "@/components/dashboard-dark/KpiCompareCard";
+import { KpiCompareCard } from "@/components/dashboard-dark/KpiCompareCard";
 import { ChartShell, SectionTitle } from "@/components/dashboard-dark/ChartShell";
 import { EvolutionChartDark } from "@/components/dashboard-dark/charts/EvolutionChartDark";
 import { DonutChartDark, DonutLegendDark, type DonutSlice } from "@/components/dashboard-dark/charts/DonutChartDark";
 import { BarChartDark, type BarPoint } from "@/components/dashboard-dark/charts/BarChartDark";
 import { HourlyHeatmapDark } from "@/components/dashboard-dark/charts/HourlyHeatmapDark";
 import { MediaGridDark } from "@/components/dashboard-dark/MediaGridDark";
+import { StoriesGrid } from "@/components/dashboard-dark/StoriesGrid";
 import {
   MediaTableDark,
   type MediaSortKey,
@@ -153,6 +158,9 @@ export default async function AccountDetailDarkPage({
     // direta à IG API com since/until do period. Inclui paid breakdown.
     kpisCurrentPeriod,
     kpisPreviousPeriod,
+    storiesInPeriod,
+    storiesAgg,
+    storiesAggPrev,
   ] = await Promise.all([
     listAccountSnapshots(supabase, account.id, 365),
     listMediaWithInsights(supabase, account.id, { limit: 100, productType }),
@@ -168,6 +176,9 @@ export default async function AccountDetailDarkPage({
     getPaidAggregatesForPeriod(supabase, account.id, period.start, period.end, "REELS"),
     fetchAccountKpisForPeriod(account, period.start, period.end),
     fetchAccountKpisForPeriod(account, previous.start, previous.end),
+    listStoriesForPeriod(supabase, account.id, period.start, period.end, 60),
+    getStoriesAggregates(supabase, account.id, period.start, period.end),
+    getStoriesAggregates(supabase, account.id, previous.start, previous.end),
   ]);
 
   const media = allMedia.filter((m) => {
@@ -552,22 +563,45 @@ export default async function AccountDetailDarkPage({
           />
         </section>
 
-        {/* Stories placeholder */}
-        <SectionTitle eyebrow="Stories" title="Stories (em breve)." />
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <KpiEmptyCard
-            label="Número de stories"
-            helpText="Sync de stories ainda não implementado. Stories expiram em 24h — requer cron a cada 4–6h."
+        {/* Stories */}
+        <SectionTitle eyebrow="Stories" title="Performance dos stories." />
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCompareCard
+            compare={compare}
+            label="Stories publicados"
+            value={storiesAgg.count}
+            previous={storiesAggPrev.count}
           />
-          <KpiEmptyCard
-            label="Visualizações de stories"
-            helpText="Disponível após implementar sync de stories."
+          <KpiCompareCard
+            compare={compare}
+            label="Visualizações"
+            value={storiesAgg.views}
+            previous={storiesAggPrev.views}
           />
-          <KpiEmptyCard
-            label="Alcance dos stories"
-            helpText="Disponível após implementar sync de stories."
+          <KpiCompareCard
+            compare={compare}
+            label="Alcance"
+            value={storiesAgg.reach}
+            previous={storiesAggPrev.reach}
+          />
+          <KpiCompareCard
+            compare={compare}
+            label="Interações"
+            value={storiesAgg.total_interactions}
+            previous={storiesAggPrev.total_interactions}
           />
         </section>
+        {storiesInPeriod.length === 0 ? (
+          <p className="text-xs text-white/40">
+            A IG API só expõe stories ativos (&lt;24h). O sync atual coleta o que estiver ativo no momento — pra histórico completo, é preciso rodar o sync de forma recorrente (cron a cada 4-6h).
+          </p>
+        ) : (
+          <p className="text-xs text-white/40">
+            {storiesInPeriod.length}{" "}
+            {storiesInPeriod.length === 1 ? "story" : "stories"} no período
+          </p>
+        )}
+        <StoriesGrid stories={storiesInPeriod} />
 
         {/* Tabs e Mídia */}
         <SectionTitle eyebrow="Conteúdo" title="Posts no período." />
