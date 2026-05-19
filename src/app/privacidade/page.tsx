@@ -18,8 +18,8 @@ function Section({
 }) {
   return (
     <section className="space-y-3">
-      <h2 className="headline-display text-3xl text-ink">{title}</h2>
-      <div className="space-y-3 text-base leading-relaxed text-ink-soft">
+      <h2 className="headline-display text-3xl text-fg">{title}</h2>
+      <div className="space-y-3 text-base leading-relaxed text-fg-muted">
         {children}
       </div>
     </section>
@@ -28,19 +28,19 @@ function Section({
 
 export default function PrivacidadePage() {
   return (
-    <div className="bg-paper-grid min-h-screen">
+    <div className="theme-glow relative min-h-screen bg-bg text-fg">
       {/* Topo */}
-      <header className="border-b border-ink/10 bg-cream/60 backdrop-blur-sm">
+      <header className="border-b border-border bg-surface/60 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6 sm:px-8">
           <Link
             href="/"
-            className="headline-display text-2xl text-ink hover:opacity-80"
+            className="headline-display text-2xl text-fg hover:opacity-80"
           >
             Studio Baires
           </Link>
           <Link
             href="/"
-            className="text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline"
+            className="text-sm font-semibold text-fg-muted underline-offset-4 hover:text-fg hover:underline"
           >
             Voltar
           </Link>
@@ -49,27 +49,27 @@ export default function PrivacidadePage() {
 
       {/* Conteúdo */}
       <main className="mx-auto max-w-3xl px-6 py-16 sm:px-8">
-        <p className="text-sm font-semibold uppercase tracking-wider text-ink-soft">
+        <p className="text-sm font-semibold uppercase tracking-wider text-fg-muted">
           Política
         </p>
-        <h1 className="headline-display mt-2 text-5xl text-ink sm:text-6xl">
-          Política de <span className="text-burgundy">Privacidade</span>
+        <h1 className="headline-display mt-2 text-5xl text-fg sm:text-6xl">
+          Política de <span className="dark-text-grad">Privacidade</span>
         </h1>
-        <p className="mt-4 text-sm text-ink-soft">
+        <p className="mt-4 text-sm text-fg-muted">
           Última atualização: {LAST_UPDATED}
         </p>
 
         <div className="mt-12 space-y-12">
-          <p className="text-base leading-relaxed text-ink-soft">
+          <p className="text-base leading-relaxed text-fg-muted">
             O Studio Baires Métricas (&ldquo;Studio Baires&rdquo;, &ldquo;nós&rdquo;) é uma plataforma de
             análise de métricas do Instagram para agências e seus clientes. Esta
             Política descreve quais dados coletamos, como usamos e quais são os
             seus direitos, em conformidade com a{" "}
-            <strong className="text-ink">
+            <strong className="text-fg">
               Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018)
             </strong>{" "}
             e com os termos da{" "}
-            <strong className="text-ink">Meta Platforms</strong> (Instagram
+            <strong className="text-fg">Meta Platforms</strong> (Instagram
             Graph API).
           </p>
 
@@ -77,23 +77,23 @@ export default function PrivacidadePage() {
             <p>Coletamos apenas o estritamente necessário:</p>
             <ul className="ml-5 list-disc space-y-2">
               <li>
-                <strong className="text-ink">Dados de autenticação:</strong>{" "}
+                <strong className="text-fg">Dados de autenticação:</strong>{" "}
                 seu e-mail e nome (via Google ou link mágico).
               </li>
               <li>
-                <strong className="text-ink">Dados das contas Instagram conectadas:</strong>{" "}
+                <strong className="text-fg">Dados das contas Instagram conectadas:</strong>{" "}
                 quando você conecta uma conta Business/Creator, recebemos da
                 Meta o ID da conta, username, foto de perfil, e métricas
                 públicas e privadas autorizadas (seguidores, alcance,
                 impressões, engajamento por post, etc.).
               </li>
               <li>
-                <strong className="text-ink">Tokens de acesso da Meta:</strong>{" "}
+                <strong className="text-fg">Tokens de acesso da Meta:</strong>{" "}
                 armazenados de forma criptografada (AES-256-GCM) e usados
                 exclusivamente pra consultar a API oficial do Instagram.
               </li>
               <li>
-                <strong className="text-ink">Dados técnicos:</strong> cookies
+                <strong className="text-fg">Dados técnicos:</strong> cookies
                 de sessão pra manter você logado.
               </li>
             </ul>
@@ -105,7 +105,7 @@ export default function PrivacidadePage() {
               <li>Gerar relatórios PDF brandados pra entrega aos clientes da agência.</li>
               <li>Manter sua sessão ativa e proteger sua conta.</li>
               <li>
-                <strong className="text-ink">
+                <strong className="text-fg">
                   Não usamos seus dados para treinar modelos de IA, não vendemos
                   dados a terceiros, não compartilhamos com anunciantes.
                 </strong>
@@ -120,20 +120,20 @@ export default function PrivacidadePage() {
             </p>
             <ul className="ml-5 list-disc space-y-2">
               <li>
-                <strong className="text-ink">Supabase</strong> — armazenamento
+                <strong className="text-fg">Supabase</strong> — armazenamento
                 de banco de dados e autenticação.
               </li>
               <li>
-                <strong className="text-ink">Vercel</strong> — hospedagem da
+                <strong className="text-fg">Vercel</strong> — hospedagem da
                 aplicação.
               </li>
               <li>
-                <strong className="text-ink">Meta Platforms</strong> — fonte
+                <strong className="text-fg">Meta Platforms</strong> — fonte
                 oficial dos dados do Instagram (somente leitura via API
                 autorizada por você).
               </li>
               <li>
-                <strong className="text-ink">Google</strong> — somente se você
+                <strong className="text-fg">Google</strong> — somente se você
                 escolher login com Google.
               </li>
             </ul>
@@ -150,7 +150,7 @@ export default function PrivacidadePage() {
               solicitar a exclusão completa a qualquer momento, escrevendo pra{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="font-semibold text-ink underline-offset-4 hover:underline"
+                className="font-semibold text-fg underline-offset-4 hover:underline"
               >
                 {CONTACT_EMAIL}
               </a>
@@ -164,7 +164,7 @@ export default function PrivacidadePage() {
                 href="https://accountscenter.instagram.com/apps_and_websites"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-ink underline-offset-4 hover:underline"
+                className="font-semibold text-fg underline-offset-4 hover:underline"
               >
                 Configurações do Instagram → Apps e sites
               </a>
@@ -185,7 +185,7 @@ export default function PrivacidadePage() {
               Pra exercer qualquer um desses direitos, escreva pra{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="font-semibold text-ink underline-offset-4 hover:underline"
+                className="font-semibold text-fg underline-offset-4 hover:underline"
               >
                 {CONTACT_EMAIL}
               </a>
@@ -217,7 +217,7 @@ export default function PrivacidadePage() {
               disponível em{" "}
               <Link
                 href="/privacidade"
-                className="font-semibold text-ink underline-offset-4 hover:underline"
+                className="font-semibold text-fg underline-offset-4 hover:underline"
               >
                 /privacidade
               </Link>
@@ -230,7 +230,7 @@ export default function PrivacidadePage() {
               Dúvidas sobre privacidade ou exercício de direitos:{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="font-semibold text-ink underline-offset-4 hover:underline"
+                className="font-semibold text-fg underline-offset-4 hover:underline"
               >
                 {CONTACT_EMAIL}
               </a>
@@ -239,8 +239,8 @@ export default function PrivacidadePage() {
         </div>
       </main>
 
-      <footer className="mx-auto max-w-3xl px-6 py-12 text-sm text-ink-soft sm:px-8">
-        <div className="border-t border-ink/10 pt-6 text-center italic">
+      <footer className="mx-auto max-w-3xl px-6 py-12 text-sm text-fg-muted sm:px-8">
+        <div className="border-t border-border pt-6 text-center italic">
           Studio Baires — feito no Brasil.
         </div>
       </footer>

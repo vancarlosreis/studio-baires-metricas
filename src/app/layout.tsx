@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import { getThemeFromCookie } from "@/lib/theme";
 
 // IvyPresto Display — voz tipográfica oficial da marca Studio Baires
 const ivyPresto = localFont({
@@ -57,17 +58,18 @@ export const metadata: Metadata = {
     "Análise de Instagram para agências que entregam relatórios com cara de editorial, não de planilha.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const theme = await getThemeFromCookie();
   return (
     <html
       lang="pt-BR"
-      className={`${ivyPresto.variable} ${jakarta.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
+      className={`${theme} ${ivyPresto.variable} ${jakarta.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-cream text-ink font-sans">
+      <body className="min-h-full flex flex-col bg-bg text-fg font-sans">
         {children}
       </body>
     </html>
