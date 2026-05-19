@@ -842,12 +842,15 @@ export async function fetchNavigationBreakdown(
     swipe_forward: 0,
   };
   for (const row of rows) {
-    const key = (row.dimension_values?.[0] ?? "") as string;
+    // A Meta retorna lowercase ("tap_forward", "tap_back", "tap_exit",
+    // "swipe_forward") na v23. Normalizamos pra evitar quebrar caso ela
+    // mude pra UPPERCASE no futuro.
+    const key = String(row.dimension_values?.[0] ?? "").toLowerCase();
     const v = typeof row.value === "number" ? row.value : 0;
-    if (key === "TAP_FORWARD") result.taps_forward = v;
-    else if (key === "TAP_BACK") result.taps_back = v;
-    else if (key === "TAP_EXIT") result.exits = v;
-    else if (key === "SWIPE_FORWARD") result.swipe_forward = v;
+    if (key === "tap_forward") result.taps_forward = v;
+    else if (key === "tap_back") result.taps_back = v;
+    else if (key === "tap_exit") result.exits = v;
+    else if (key === "swipe_forward") result.swipe_forward = v;
   }
   return {
     result,
