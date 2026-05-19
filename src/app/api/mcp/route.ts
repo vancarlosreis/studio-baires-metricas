@@ -23,6 +23,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkBearer } from "@/lib/mcp/auth";
 import { TOOLS, findTool } from "@/lib/mcp/tools";
+import { baseUrl } from "@/lib/base-url";
 
 const PROTOCOL_VERSION = "2025-06-18";
 const SERVER_INFO = {
@@ -116,14 +117,6 @@ async function handleMessage(msg: JsonRpcRequest): Promise<JsonRpcResponse | nul
     default:
       return error(id, -32601, `Método não suportado: ${msg.method}`);
   }
-}
-
-function baseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
-    "https://studio-baires-metricas.vercel.app"
-  ).replace(/\/$/, "");
 }
 
 export async function POST(request: NextRequest) {
