@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "Visão geral" },
   { href: "/dashboard/contas", label: "Contas" },
   { href: "/dashboard/relatorios", label: "Relatórios" },
+  { href: "/dashboard/integrations", label: "Integrações" },
 ];
 
 export async function TopNav() {

@@ -488,6 +488,159 @@ export type Database = {
           },
         ]
       }
+      oauth_clients: {
+        Row: {
+          id: string
+          client_id: string
+          client_name: string | null
+          redirect_uris: string[]
+          grant_types: string[]
+          response_types: string[]
+          token_endpoint_auth_method: string
+          scope: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          client_name?: string | null
+          redirect_uris: string[]
+          grant_types?: string[]
+          response_types?: string[]
+          token_endpoint_auth_method?: string
+          scope?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          client_name?: string | null
+          redirect_uris?: string[]
+          grant_types?: string[]
+          response_types?: string[]
+          token_endpoint_auth_method?: string
+          scope?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      oauth_authorization_codes: {
+        Row: {
+          code_hash: string
+          client_id: string
+          user_id: string
+          user_email: string
+          redirect_uri: string
+          scope: string | null
+          code_challenge: string
+          code_challenge_method: string
+          resource: string | null
+          expires_at: string
+          used_at: string | null
+          created_at: string
+        }
+        Insert: {
+          code_hash: string
+          client_id: string
+          user_id: string
+          user_email: string
+          redirect_uri: string
+          scope?: string | null
+          code_challenge: string
+          code_challenge_method: string
+          resource?: string | null
+          expires_at: string
+          used_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          code_hash?: string
+          client_id?: string
+          user_id?: string
+          user_email?: string
+          redirect_uri?: string
+          scope?: string | null
+          code_challenge?: string
+          code_challenge_method?: string
+          resource?: string | null
+          expires_at?: string
+          used_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      oauth_access_tokens: {
+        Row: {
+          token_hash: string
+          client_id: string
+          user_id: string
+          user_email: string
+          scope: string | null
+          expires_at: string
+          revoked_at: string | null
+          last_used_at: string | null
+          created_at: string
+        }
+        Insert: {
+          token_hash: string
+          client_id: string
+          user_id: string
+          user_email: string
+          scope?: string | null
+          expires_at: string
+          revoked_at?: string | null
+          last_used_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          token_hash?: string
+          client_id?: string
+          user_id?: string
+          user_email?: string
+          scope?: string | null
+          expires_at?: string
+          revoked_at?: string | null
+          last_used_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      oauth_refresh_tokens: {
+        Row: {
+          token_hash: string
+          access_token_hash: string | null
+          client_id: string
+          user_id: string
+          user_email: string
+          scope: string | null
+          expires_at: string
+          revoked_at: string | null
+          created_at: string
+        }
+        Insert: {
+          token_hash: string
+          access_token_hash?: string | null
+          client_id: string
+          user_id: string
+          user_email: string
+          scope?: string | null
+          expires_at: string
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          token_hash?: string
+          access_token_hash?: string | null
+          client_id?: string
+          user_id?: string
+          user_email?: string
+          scope?: string | null
+          expires_at?: string
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           created_at: string

@@ -1,36 +1,42 @@
 # MCP Server — Studio Baires Métricas
 
-Servidor MCP (Model Context Protocol) exposto em `/api/mcp` que permite ao Claude (Desktop, Code ou Claude.ai com Connectors) acessar os dados da plataforma como ferramentas.
+Servidor MCP (Model Context Protocol) exposto em `/api/mcp` que permite ao Claude (Desktop, Code, Claude.ai com Connectors) acessar todos os dados da plataforma como ferramentas.
 
-Endpoint: `https://studio-baires-metricas.vercel.app/api/mcp`
-Transport: Streamable HTTP (JSON-RPC 2.0)
-Auth: Bearer token fixo
+- **Endpoint MCP**: `https://studio-baires-metricas.vercel.app/api/mcp`
+- **Transport**: Streamable HTTP (JSON-RPC 2.0)
+- **Auth**: OAuth 2.1 + PKCE com Dynamic Client Registration (recomendado) **ou** Bearer fixo (fallback)
 
-## 1. Gerar o token
+## Modo recomendado: OAuth (Claude.ai Connectors)
 
-Localmente:
+O Claude.ai descobre tudo automaticamente via discovery endpoints. Você só precisa apontar a URL.
 
-```bash
-openssl rand -hex 32
-# 9f2c8e4a7b1d3f5e6a8c0b9d2e4f7a8c1b3d5e7f9a0c2b4d6e8f0a1c3b5d7e9f
-```
+1. No Claude.ai: **Settings → Connectors → + Add custom connector**
+2. **Server URL**: `https://studio-baires-metricas.vercel.app/api/mcp`
+3. Clica em **Add** — o Claude.ai vai:
+   - Buscar `/.well-known/oauth-protected-resource` (descobre o Authorization Server)
+   - Buscar `/.well-known/oauth-authorization-server` (descobre os endpoints)
+   - POST em `/oauth/register` (Dynamic Client Registration)
+   - Redirecionar você pra `/oauth/authorize`
+4. Você faz login na plataforma (se não estiver) com seu email da allowlist
+5. Aprova na tela de consentimento
+6. Pronto — Claude.ai recebe access_token e refresh_token
 
-## 2. Configurar no servidor (Vercel)
+Pra **revogar acesso**: vá em **Dashboard → Integrações** na própria plataforma. Lista os tokens ativos com botão Revogar.
 
-Em **Vercel → Project → Settings → Environment Variables**:
+## Modo alternativo: Bearer fixo (uso interno / CLI / CI)
 
-| Nome                       | Valor                              | Ambientes |
-| -------------------------- | ---------------------------------- | --------- |
-| `MCP_BEARER_TOKEN`         | (o token gerado acima)             | Production + Preview |
-| `SUPABASE_SERVICE_ROLE_KEY`| (já existe — service role do Supabase) | Production + Preview |
+Pra cenários sem browser (scripts, Claude Desktop sem flow OAuth, etc):
 
-Após adicionar, **redeploy** pra que as envs sejam aplicadas.
-
-## 3. Configurar no cliente
+1. Gere um token:
+   ```bash
+   openssl rand -hex 32
+   ```
+2. Adicione no Vercel: `MCP_BEARER_TOKEN` (env var, Production + Preview), redeploy
+3. Configure o cliente passando o token no header `Authorization: Bearer <token>`
 
 ### Claude Desktop
 
-Edite `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+`claude_desktop_config.json`:
 
 ```json
 {
@@ -38,14 +44,12 @@ Edite `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) 
     "studio-baires": {
       "url": "https://studio-baires-metricas.vercel.app/api/mcp",
       "headers": {
-        "Authorization": "Bearer SEU_TOKEN_AQUI"
+        "Authorization": "Bearer SEU_MCP_BEARER_TOKEN"
       }
     }
   }
 }
 ```
-
-Reinicie o Claude Desktop. Você verá um ícone de plug indicando a conexão MCP ativa.
 
 ### Claude Code
 
@@ -53,42 +57,51 @@ Reinicie o Claude Desktop. Você verá um ícone de plug indicando a conexão MC
 claude mcp add studio-baires \
   --transport http \
   --url https://studio-baires-metricas.vercel.app/api/mcp \
-  --header "Authorization: Bearer SEU_TOKEN_AQUI"
+  --header "Authorization: Bearer SEU_TOKEN"
 ```
-
-## 4. Como usar
-
-Em qualquer conversa com o Claude:
-
-> "Lista as contas conectadas no Studio Baires"
-> "Sincroniza a duda.macedogr e me dá o overview dos últimos 30 dias"
-> "Quais foram os 5 posts com maior alcance da maqservexpress no último mês?"
-> "Analisa a evolução do reach da duda.macedogr nos últimos 90 dias e identifica padrões"
-> "Compara o desempenho de stories vs feed dessa conta"
-
-O Claude vai automaticamente chamar as tools certas.
 
 ## Tools disponíveis
 
 | Tool | O que faz |
 |------|-----------|
-| `list_accounts` | Todas as contas IG conectadas + último sync + followers |
+| `list_accounts` | Todas as contas IG conectadas + last sync + followers/posts |
 | `sync_account(handle)` | Força sync completo (~20-60s) |
 | `get_account_overview(handle, period?)` | KPIs + paid breakdown + agregados feed/reels/stories |
 | `list_top_posts(handle, period?, sort_by?, limit?)` | Posts ranqueados por métrica |
-| `list_stories(handle, period?)` | Stories com todas as métricas + retenção |
-| `get_demographics(handle)` | Audiência por idade/gênero/cidade/país |
-| `get_evolution(handle, metric, period?)` | Série diária de uma métrica |
-| `list_recent_syncs(handle?)` | Histórico de jobs de sync |
+| `list_stories(handle, period?)` | Stories com todas métricas + retenção |
+| `get_demographics(handle)` | Audiência (idade/gênero/cidade/país) |
+| `get_evolution(handle, metric, period?)` | Série diária + peak |
+| `list_recent_syncs(handle?)` | Histórico de jobs |
 
-`period` aceita `"7d"`, `"30d"`, `"90d"`, `"custom"` (com `custom_start` + `custom_end` em `YYYY-MM-DD`).
+`period` aceita `"7d"`, `"30d"`, `"90d"`, `"custom"` (com `custom_start` + `custom_end`).
 
-## Healthcheck
+## Como usar (exemplos)
 
-GET `/api/mcp` (sem token) retorna info do servidor — útil pra verificar que está no ar.
+> "Lista as contas conectadas no Studio Baires"
+> "Sincroniza a duda.macedogr e me dá o overview dos últimos 30 dias"
+> "Quais foram os 5 posts com maior alcance da maqservexpress no último mês?"
+> "Analisa a evolução do reach da duda.macedogr nos últimos 90 dias e identifica padrões"
+> "Compara stories vs feed dessa conta"
+
+## Endpoints OAuth
+
+| Endpoint | Método | RFC | Função |
+|----------|--------|-----|--------|
+| `/.well-known/oauth-authorization-server` | GET | 8414 | Metadata do AS |
+| `/.well-known/oauth-protected-resource` | GET | 9728 | Metadata do RS (anuncia AS) |
+| `/oauth/register` | POST | 7591 | Dynamic Client Registration |
+| `/oauth/authorize` | GET | 6749 | Consent screen + emissão de code |
+| `/oauth/token` | POST | 6749 | Troca code/refresh por access_token |
+| `/oauth/revoke` | POST | 7009 | Revoga token |
 
 ## Segurança
 
-- O Bearer token tem **acesso total** às contas conectadas (RLS é bypassada via service role).
-- Trate o token como senha. Se vazar, gere outro e atualize env var no Vercel.
-- Não há revogação — pra "revogar", troque o token.
+- **OAuth tokens** são armazenados como SHA-256 no Supabase (`oauth_access_tokens.token_hash`). Se o DB vazar, ninguém consegue usar o token.
+- **PKCE obrigatório** (S256) — protege contra interceptação do code.
+- **Refresh token rotation**: cada uso emite par novo e revoga o anterior.
+- **Allowlist**: só os emails autorizados (`vancarlosreis@`, `studiobaires.mkt@`) podem completar a consent screen.
+- **Bearer fixo** bypassa OAuth + allowlist — use só pra scripts internos.
+
+## Healthcheck
+
+GET `/api/mcp` (sem token) retorna info do servidor.
