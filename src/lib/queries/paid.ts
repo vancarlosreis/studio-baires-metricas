@@ -59,6 +59,7 @@ export async function getPaidAggregatesForPeriod(
     `,
     )
     .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null)
     .gte("posted_at", start.toISOString())
     .lte("posted_at", end.toISOString());
 
@@ -123,7 +124,8 @@ export async function getPaidInsightsByMediaId(
       )
     `,
     )
-    .eq("ig_account_id", igAccountId);
+    .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null);
 
   const map = new Map<
     string,

@@ -58,6 +58,7 @@ export async function getMediaAggregates(
     `,
     )
     .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null)
     .gte("posted_at", start.toISOString())
     .lte("posted_at", end.toISOString());
 
@@ -141,6 +142,7 @@ export async function getMediaByDayOfWeek(
     `,
     )
     .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null)
     .gte("posted_at", start.toISOString())
     .lte("posted_at", end.toISOString());
 

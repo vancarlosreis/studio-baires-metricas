@@ -130,6 +130,7 @@ export async function listMediaWithInsights(
     .from("media")
     .select("*")
     .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null)
     .order("posted_at", { ascending: false })
     .limit(limit);
 
@@ -176,7 +177,8 @@ export async function countMediaByType(
   const { data, error } = await supabase
     .from("media")
     .select("media_product_type")
-    .eq("ig_account_id", igAccountId);
+    .eq("ig_account_id", igAccountId)
+    .is("deleted_at", null);
 
   if (error || !data) return {};
 
