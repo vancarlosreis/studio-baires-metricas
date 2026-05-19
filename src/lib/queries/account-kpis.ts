@@ -11,6 +11,7 @@ import { decryptToken } from "@/lib/crypto";
 import {
   contextForAccount,
   getAccountInsights,
+  getAccountInsightsTimeseries,
   getAccountMetricWithProductTypeBreakdown,
   readInsightValue,
   type GraphContext,
@@ -146,4 +147,50 @@ export async function fetchAccountKpisForPeriod(
     organic_views: viewsBd?.organic ?? null,
     organic_total_interactions: interactionsBd?.organic ?? null,
   };
+}
+
+export type DailyPoint = { date: string; value: number };
+
+/**
+ * Série diária real de uma métrica account-level pra alimentar o gráfico
+ * "Alcance diário". Diferente do `snapshot.reach` (que é o total agregado
+ * dos 30d à esquerda do dia do snapshot), aqui cada ponto é o valor do dia.
+ */
+export async function fetchAccountMetricDailySeries(
+  account: {
+    access_token_encrypted: unknown;
+    auth_method: "business_login" | "facebook_login";
+    ig_user_id: string;
+  },
+  metric: "reach" | "views" | "total_interactions" | "profile_views",
+  start: Date,
+  end: Date,
+): Promise<DailyPoint[]> {
+  let token: string;
+  try {
+    token = decryptAccountToken(account.access_token_encrypted);
+  } catch {
+    return [];
+  }
+
+  const ctx: GraphContext = contextForAccount(account);
+  const MAX_RANGE_SEC = 30 * 86400;
+  const untilRaw = Math.floor(end.getTime() / 1000);
+  const sinceRaw = Math.floor(start.getTime() / 1000);
+  const until = untilRaw;
+  const since = Math.max(sinceRaw, untilRaw - MAX_RANGE_SEC);
+
+  const values = await getAccountInsightsTimeseries(
+    token,
+    metric,
+    { since, until },
+    ctx,
+  );
+
+  return values.map((v) => ({
+    // end_time vem como ISO completo "2026-05-18T07:00:00+0000" — guarda o
+    // dia da Meta (UTC) pra bater com o eixo do chart.
+    date: v.end_time.slice(0, 10),
+    value: v.value,
+  }));
 }

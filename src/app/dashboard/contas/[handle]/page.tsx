@@ -22,7 +22,10 @@ import {
   getSnapshotNearDate,
 } from "@/lib/queries/aggregates";
 import { getPaidAggregatesForPeriod } from "@/lib/queries/paid";
-import { fetchAccountKpisForPeriod } from "@/lib/queries/account-kpis";
+import {
+  fetchAccountKpisForPeriod,
+  fetchAccountMetricDailySeries,
+} from "@/lib/queries/account-kpis";
 import {
   listStoriesForPeriod,
   getStoriesAggregates,
@@ -161,6 +164,7 @@ export default async function AccountDetailDarkPage({
     storiesInPeriod,
     storiesAgg,
     storiesAggPrev,
+    reachDailySeries,
   ] = await Promise.all([
     listAccountSnapshots(supabase, account.id, 365),
     listMediaWithInsights(supabase, account.id, { limit: 100, productType }),
@@ -179,6 +183,7 @@ export default async function AccountDetailDarkPage({
     listStoriesForPeriod(supabase, account.id, period.start, period.end, 60),
     getStoriesAggregates(supabase, account.id, period.start, period.end),
     getStoriesAggregates(supabase, account.id, previous.start, previous.end),
+    fetchAccountMetricDailySeries(account, "reach", period.start, period.end),
   ]);
 
   const media = allMedia.filter((m) => {
@@ -217,13 +222,36 @@ export default async function AccountDetailDarkPage({
   const topCountriesFollower = topEntries(demographics.follower?.country, 6);
   const topCitiesReached = topEntries(demographics.reached?.city, 10);
 
-  const onlineFollowers = latest?.online_followers as Record<string, number> | null;
+  // Online followers — pega do snapshot mais recente que tenha dados não-vazios.
+  // O sync pode falhar em chamar getOnlineFollowers em alguns dias (esse endpoint
+  // é mais instável) e gravar null. Em vez de mostrar "sem dados", fazemos
+  // fallback pra última coleta válida (é dado lifetime, então não fica "antigo").
+  function nonEmptyOnlineFollowers(
+    v: unknown,
+  ): Record<string, number> | null {
+    if (!v || typeof v !== "object") return null;
+    const obj = v as Record<string, unknown>;
+    const hasData = Object.values(obj).some(
+      (x) => typeof x === "number" && x > 0,
+    );
+    return hasData ? (obj as Record<string, number>) : null;
+  }
+  const onlineFollowers =
+    nonEmptyOnlineFollowers(latest?.online_followers) ??
+    (() => {
+      for (let i = snapshots.length - 1; i >= 0; i--) {
+        const v = nonEmptyOnlineFollowers(snapshots[i].online_followers);
+        if (v) return v;
+      }
+      return null;
+    })();
 
-  // Reach evolution
+  // Reach evolution — usa timeseries diária real da IG API (não os snapshots,
+  // que guardam o agregado dos 30d à esquerda do snapshot = vira curva cumulativa).
   const chartSnapshots = inPeriodSnapshots.length > 0 ? inPeriodSnapshots : snapshots;
-  const reachData = chartSnapshots.map((s) => ({
-    date: s.snapshot_date,
-    value: s.reach,
+  const reachData = reachDailySeries.map((p) => ({
+    date: p.date,
+    value: p.value,
   }));
 
   // Followers evolution (cumulative if column exists)
@@ -371,7 +399,6 @@ export default async function AccountDetailDarkPage({
             icon="link"
             accent="purple"
             sparkline={linkTapsSpark}
-            hint="website_clicks · IG Insights"
           />
         </section>
 
