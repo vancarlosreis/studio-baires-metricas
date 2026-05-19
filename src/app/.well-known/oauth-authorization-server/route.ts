@@ -3,14 +3,7 @@
  * Anuncia endpoints + capabilities. Clientes (Claude.ai) buscam aqui primeiro.
  */
 import { NextResponse } from "next/server";
-
-function baseUrl(): string {
-  const url =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
-    "https://studio-baires-metricas.vercel.app";
-  return url.replace(/\/$/, "");
-}
+import { baseUrl } from "@/lib/base-url";
 
 export function GET() {
   const issuer = baseUrl();
