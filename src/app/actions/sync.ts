@@ -719,18 +719,27 @@ export async function syncStories(
       return { ok: true, igAccountId, storyCount: 0, warnings };
     }
 
+    // Insights de todos os stories em paralelo (ganha muito tempo vs sequencial).
+    const insightResults = await Promise.all(
+      stories.map((s) =>
+        getStoryInsights(accessToken, s.id, graphCtx).catch((err) => ({
+          insights: [],
+          navigation: null,
+          errors: [err instanceof Error ? err.message : "erro"],
+        })),
+      ),
+    );
+
     let saved = 0;
-    for (const story of stories) {
+    for (let i = 0; i < stories.length; i++) {
+      const story = stories[i];
+      const { insights, navigation, errors: insightErrors } = insightResults[i];
+
       const postedAt = story.timestamp;
       const expiresAt = new Date(
         new Date(postedAt).getTime() + 24 * 60 * 60 * 1000,
       ).toISOString();
 
-      const { insights, errors: insightErrors } = await getStoryInsights(
-        accessToken,
-        story.id,
-        graphCtx,
-      );
       if (insightErrors.length > 0) {
         warnings.push(`story ${story.id}: ${insightErrors[0]}`);
       }
@@ -751,14 +760,20 @@ export async function syncStories(
           replies: findMetric(insights, "replies"),
           shares: findMetric(insights, "shares"),
           total_interactions: findMetric(insights, "total_interactions"),
-          taps_forward: findMetric(insights, "taps_forward"),
-          taps_back: findMetric(insights, "taps_back"),
-          exits: findMetric(insights, "exits"),
+          // Avançar/Voltar/Sair vêm do breakdown (depreciadas no v22+ como
+          // métricas top-level — só funcionam via story_navigation_action_type).
+          taps_forward: navigation?.taps_forward ?? null,
+          taps_back: navigation?.taps_back ?? null,
+          exits: navigation?.exits ?? null,
+          // navigation agregado (total) — útil pra somas; "próximo story" é
+          // SWIPE_FORWARD do breakdown.
           navigation: findMetric(insights, "navigation"),
+          swipe_forward: navigation?.swipe_forward ?? null,
           profile_activity: findMetric(insights, "profile_activity"),
           raw_payload: {
             story,
             insights,
+            navigation,
             errors: insightErrors,
           } as unknown as never,
         },
